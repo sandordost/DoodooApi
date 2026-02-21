@@ -57,4 +57,6 @@ app.MapIdentityApi<AppUser>();
 
 app.MapControllers();
 
+app.MapGet("/health", () => Results.Ok("ok"));
+
 app.Run();
