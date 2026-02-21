@@ -23,11 +23,21 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+            driver: docker-container
 
       # Optioneel: draai je compose stack voor migrations + smoke test
       - name: Compose up (db + migrator + api)
         run: docker compose up --build -d
-        
+
+      - name: Show compose status
+        if: always()
+        run: docker compose ps
+
+      - name: Tail api logs
+        if: always()
+        run: docker compose logs doodooapi --no-color --tail=200
+                
       - name: Run Health Check
         run: |
             for i in {1..30}; do
