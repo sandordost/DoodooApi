@@ -1,0 +1,6 @@
+@DoodooApi_HostAddress = http://localhost:5122
+
+GET {{DoodooApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
