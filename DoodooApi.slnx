@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="DoodooApi.csproj" />
+  <Project Path="Api/DoodooApi.csproj" />
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
 </Solution>
