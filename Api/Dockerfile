@@ -7,7 +7,6 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
-
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
@@ -17,6 +16,12 @@ RUN dotnet restore "./DoodooApi.csproj"
 COPY . .
 WORKDIR "/src/."
 RUN dotnet build "./DoodooApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+
+# --------- Migrator ----------
+FROM build AS migrator
+WORKDIR /src
+ENTRYPOINT ["sh", "-c", "dotnet tool restore && dotnet build ./DoodooApi.csproj -c Release && dotnet ef database update --no-build --configuration Release --project ./DoodooApi.csproj --startup-project ./DoodooApi.csproj --verbose"]
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
