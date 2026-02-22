@@ -120,7 +120,17 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
             cd /opt/doodoo
-            docker compose pull
+
+            # (optioneel) login via token in env/secret
+            echo "$GHCR_PAT" | docker login ghcr.io -u sandordost --password-stdin
+
+            # retry pull
+            for i in 1 2 3 4 5; do
+              docker compose pull && break
+              echo "pull failed, retry $i/5..."
+              sleep 5
+            done
+
             docker compose up -d db
             docker compose run --rm migrator
             docker compose up -d --remove-orphans
