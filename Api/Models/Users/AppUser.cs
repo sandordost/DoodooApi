@@ -5,6 +5,6 @@ namespace DoodooApi.Models.Users
 {
     public class AppUser : IdentityUser<Guid>
     {
-        public List<TodoItem> TodoItems { get; set; }
+        public List<TodoItem> TodoItems { get; set; } = [];
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace DoodooApi.Models.Enums
 {
-    public enum TaskDifficulty
+    public enum ItemDifficulty
     {
         Trivial,
         Easy,
