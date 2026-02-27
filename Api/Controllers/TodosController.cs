@@ -24,7 +24,7 @@ namespace DoodooApi.Controllers
             return Ok(items);
         }
 
-        [HttpGet("/{id}")]
+        [HttpGet("{id}")]
         public async Task<ActionResult<TodoItem>> GetTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
@@ -66,7 +66,7 @@ namespace DoodooApi.Controllers
             return NoContent();
         }
 
-        [HttpDelete("/{id}")]
+        [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();

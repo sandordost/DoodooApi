@@ -38,6 +38,8 @@ builder.Services.AddAutoMapper(options =>
 // Dependency Injection
 builder.Services.AddScoped<TodoItemService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<RewardService>();
 
 var connectionString = builder.Configuration.GetConnectionString("Db");
 if (string.IsNullOrEmpty(connectionString))

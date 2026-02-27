@@ -2,7 +2,7 @@
 {
     public enum ItemCategory
     {
-        Normal,
-        Daily
+        Normal = 0,
+        Daily = 1,
     }
 }
