@@ -1,4 +1,7 @@
-﻿using DoodooApi.Models.TodoItems;
+﻿using DoodooApi.Models.Enums;
+using DoodooApi.Models.Main.TodoItems;
+using DoodooApi.Models.Requests.TodoItems;
+using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,7 +42,7 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<TodoItem>> CreateTodoItem(TodoItemService.CreateTodoItemRequest request)
+        public async Task<ActionResult<TodoItem>> CreateTodoItem(CreateTodoItemRequest request)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var newItem = await todoItemService.CreateItemAsync(userId, request);
@@ -53,17 +56,15 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("{id}/Complete")]
-        public async Task<ActionResult> CompleteTodoItem(Guid id)
+        public async Task<ActionResult<TransactionProcessResponse>> CompleteTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
-            var success = await todoItemService.CompleteItemAsync(id, userId);
+            var response = await todoItemService.CompleteItemAsync(id, userId);
 
-            if (!success)
-            {
-                return NotFound();
-            }
+            if (response.ResponseCode == TransactionResponseCode.Completed)
+                return Ok(response);
 
-            return NoContent();
+            return BadRequest(response);
         }
 
         [HttpDelete("{id}")]
@@ -81,17 +82,17 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("{id}/UndoCompletion")]
-        public async Task<ActionResult> UndoCompleteTodoItem(Guid id)
+        public async Task<ActionResult<TransactionProcessResponse>> UndoCompleteTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
-            var success = await todoItemService.UndoCompletionAsync(id, userId);
+            var transactionResponse = await todoItemService.UndoCompletionAsync(id, userId);
 
-            if (!success)
+            if (transactionResponse.ResponseCode != TransactionResponseCode.Reverted)
             {
-                return NotFound();
+                return BadRequest(transactionResponse);
             }
 
-            return NoContent();
+            return Ok(transactionResponse);
         }
     }
 }

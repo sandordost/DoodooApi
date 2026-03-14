@@ -1,5 +1,4 @@
-﻿using DoodooApi.Models;
-using DoodooApi.Models.CurrencyAccounts;
+﻿using DoodooApi.Models.Main.CurrencyAccounts;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,15 +24,6 @@ namespace DoodooApi.Controllers
             }
 
             return Ok(balance);
-        }
-
-        [HttpGet("transactions")]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions()
-        {
-            var userId = userService.GetCurrentUserIdOrThrow();
-            var transactions = await currencyAccountService.GetTransactions(userId);
-
-            return Ok(transactions);
         }
     }
 }

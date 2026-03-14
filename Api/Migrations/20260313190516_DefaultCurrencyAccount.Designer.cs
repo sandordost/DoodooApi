@@ -3,6 +3,7 @@ using System;
 using DoodooApi.Models.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,13 +12,15 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DoodooApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313190516_DefaultCurrencyAccount")]
+    partial class DefaultCurrencyAccount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -42,7 +45,7 @@ namespace DoodooApi.Migrations
                     b.HasIndex("OwnerId")
                         .IsUnique();
 
-                    b.ToTable("CurrencyAccounts", (string)null);
+                    b.ToTable("CurrencyAccounts");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.DifficultyRewardRule", b =>
@@ -52,9 +55,6 @@ namespace DoodooApi.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Difficulty")
-                        .HasColumnType("integer");
 
                     b.Property<decimal>("GoldAmount")
                         .HasColumnType("numeric");
@@ -67,41 +67,7 @@ namespace DoodooApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DifficultyRewardRules", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Difficulty = 0,
-                            GoldAmount = 0.4m,
-                            SapphireAmount = 1,
-                            SapphireChance = 0.01f
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Difficulty = 1,
-                            GoldAmount = 0.7m,
-                            SapphireAmount = 1,
-                            SapphireChance = 0.05f
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Difficulty = 2,
-                            GoldAmount = 1m,
-                            SapphireAmount = 1,
-                            SapphireChance = 0.1f
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Difficulty = 3,
-                            GoldAmount = 1.3m,
-                            SapphireAmount = 1,
-                            SapphireChance = 0.15f
-                        });
+                    b.ToTable("DifficultyRewardRules");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.Reward", b =>
@@ -132,7 +98,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Rewards", (string)null);
+                    b.ToTable("Rewards");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.RewardClaim", b =>
@@ -149,7 +115,7 @@ namespace DoodooApi.Migrations
                     b.Property<int>("RewardId")
                         .HasColumnType("integer");
 
-                    b.Property<Guid?>("TransactionId")
+                    b.Property<Guid>("TransactionId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("UserId")
@@ -163,7 +129,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RewardClaims", (string)null);
+                    b.ToTable("RewardClaims");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.RewardCost", b =>
@@ -180,14 +146,14 @@ namespace DoodooApi.Migrations
                     b.Property<int>("CurrencyType")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("RewardId")
+                    b.Property<int>("RewardId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RewardId");
 
-                    b.ToTable("RewardCosts", (string)null);
+                    b.ToTable("RewardCosts");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.TodoItems.TodoItem", b =>
@@ -222,7 +188,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("TodoItems", (string)null);
+                    b.ToTable("TodoItems");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Transaction", b =>
@@ -250,7 +216,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("CurrencyAccountId");
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.TransactionRecord", b =>
@@ -274,7 +240,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("TransactionRecords", (string)null);
+                    b.ToTable("TransactionRecords");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Users.AppUser", b =>
@@ -511,7 +477,8 @@ namespace DoodooApi.Migrations
                     b.HasOne("DoodooApi.Models.Transaction", "Transaction")
                         .WithMany()
                         .HasForeignKey("TransactionId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("DoodooApi.Models.Users.AppUser", "User")
                         .WithMany("RewardClaims")
@@ -531,7 +498,8 @@ namespace DoodooApi.Migrations
                     b.HasOne("DoodooApi.Models.Rewards.Reward", "Reward")
                         .WithMany("RewardCosts")
                         .HasForeignKey("RewardId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Reward");
                 });

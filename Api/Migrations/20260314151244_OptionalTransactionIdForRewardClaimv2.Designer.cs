@@ -3,6 +3,7 @@ using System;
 using DoodooApi.Models.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DoodooApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260314151244_OptionalTransactionIdForRewardClaimv2")]
+    partial class OptionalTransactionIdForRewardClaimv2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -42,7 +45,7 @@ namespace DoodooApi.Migrations
                     b.HasIndex("OwnerId")
                         .IsUnique();
 
-                    b.ToTable("CurrencyAccounts", (string)null);
+                    b.ToTable("CurrencyAccounts");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.DifficultyRewardRule", b =>
@@ -67,7 +70,7 @@ namespace DoodooApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DifficultyRewardRules", (string)null);
+                    b.ToTable("DifficultyRewardRules");
 
                     b.HasData(
                         new
@@ -132,7 +135,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Rewards", (string)null);
+                    b.ToTable("Rewards");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.RewardClaim", b =>
@@ -163,7 +166,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RewardClaims", (string)null);
+                    b.ToTable("RewardClaims");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Rewards.RewardCost", b =>
@@ -187,7 +190,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("RewardId");
 
-                    b.ToTable("RewardCosts", (string)null);
+                    b.ToTable("RewardCosts");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.TodoItems.TodoItem", b =>
@@ -222,7 +225,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("TodoItems", (string)null);
+                    b.ToTable("TodoItems");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Transaction", b =>
@@ -250,7 +253,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("CurrencyAccountId");
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.TransactionRecord", b =>
@@ -274,7 +277,7 @@ namespace DoodooApi.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("TransactionRecords", (string)null);
+                    b.ToTable("TransactionRecords");
                 });
 
             modelBuilder.Entity("DoodooApi.Models.Users.AppUser", b =>

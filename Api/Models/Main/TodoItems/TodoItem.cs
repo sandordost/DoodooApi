@@ -1,7 +1,7 @@
 ﻿using DoodooApi.Models.Enums;
-using DoodooApi.Models.Users;
+using DoodooApi.Models.Main.Users;
 
-namespace DoodooApi.Models.TodoItems
+namespace DoodooApi.Models.Main.TodoItems
 {
     public class TodoItem
     {

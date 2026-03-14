@@ -2,7 +2,7 @@
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace DoodooApi.Swagger;
+namespace DoodooApi.Models.Main.Users;
 
 public class AuthorizeOperationFilter : IOperationFilter
 {

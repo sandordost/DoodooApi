@@ -1,6 +1,5 @@
-using DoodooApi.Mappings;
 using DoodooApi.Models.Database;
-using DoodooApi.Models.Users;
+using DoodooApi.Models.Main.Users;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -30,16 +29,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddAutoMapper(options =>
-{
-    options.AddProfile<MappingProfile>();
-});
 
 // Dependency Injection
 builder.Services.AddScoped<TodoItemService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<RewardService>();
+builder.Services.AddScoped<CurrencyAccountService>();
+builder.Services.AddScoped<DifficultyRewardService>();
 
 var connectionString = builder.Configuration.GetConnectionString("Db");
 if (string.IsNullOrEmpty(connectionString))

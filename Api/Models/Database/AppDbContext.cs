@@ -1,7 +1,9 @@
-﻿using DoodooApi.Models.CurrencyAccounts;
-using DoodooApi.Models.Rewards;
-using DoodooApi.Models.TodoItems;
-using DoodooApi.Models.Users;
+﻿using DoodooApi.Models.Enums;
+using DoodooApi.Models.Main.CurrencyAccounts;
+using DoodooApi.Models.Main.Rewards;
+using DoodooApi.Models.Main.TodoItems;
+using DoodooApi.Models.Main.Transactions;
+using DoodooApi.Models.Main.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -78,13 +80,53 @@ namespace DoodooApi.Models.Database
 
             modelBuilder.Entity<RewardClaim>(claim =>
             {
+                claim.HasKey(c => c.Id);
+                claim.Property(c => c.Id).ValueGeneratedOnAdd();
+
                 claim.HasOne(c => c.User)
                     .WithMany(u => u.RewardClaims)
                     .HasForeignKey(c => c.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                claim.HasOne(c => c.Transaction);
+                claim.HasOne(c => c.Transaction)
+                    .WithMany()
+                    .HasForeignKey(c => c.TransactionId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
+
+            modelBuilder.Entity<DifficultyRewardRule>().HasData(SeedDifficultyRewardRules);
         }
+
+        private static List<DifficultyRewardRule> SeedDifficultyRewardRules => [
+            new(){
+                Id = 1,
+                Difficulty = ItemDifficulty.Trivial,
+                GoldAmount = 0.4m,
+                SapphireAmount = 1,
+                SapphireChance = 0.01f
+            },
+            new(){
+                Id = 2,
+                Difficulty = ItemDifficulty.Easy,
+                GoldAmount = 0.7m,
+                SapphireAmount = 1,
+                SapphireChance = 0.05f
+            },
+            new(){
+                Id = 3,
+                Difficulty = ItemDifficulty.Medium,
+                GoldAmount = 1,
+                SapphireAmount = 1,
+                SapphireChance = 0.1f
+            },
+            new(){
+                Id = 4,
+                Difficulty = ItemDifficulty.Hard,
+                GoldAmount = 1.3m,
+                SapphireAmount = 1,
+                SapphireChance = 0.15f
+            },
+        ];
     }
 }

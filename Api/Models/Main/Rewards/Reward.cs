@@ -1,6 +1,6 @@
-﻿using DoodooApi.Models.Users;
+﻿using DoodooApi.Models.Main.Users;
 
-namespace DoodooApi.Models.Rewards
+namespace DoodooApi.Models.Main.Rewards
 {
     public class Reward
     {

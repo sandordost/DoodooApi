@@ -1,12 +1,15 @@
-﻿using AutoMapper;
-using DoodooApi.Models.Database;
+﻿using DoodooApi.Models.Database;
 using DoodooApi.Models.Enums;
-using DoodooApi.Models.TodoItems;
+using DoodooApi.Models.Main.TodoItems;
+using DoodooApi.Models.Mappings;
+using DoodooApi.Models.Requests.TodoItems;
+using DoodooApi.Models.Requests.Transactions;
+using DoodooApi.Models.Responses.Transactions;
 using Microsoft.EntityFrameworkCore;
 
 namespace DoodooApi.Services
 {
-    public class TodoItemService(AppDbContext context, IMapper mapper)
+    public class TodoItemService(AppDbContext context, TransactionService transactionService, CurrencyAccountService currencyAccountService, DifficultyRewardService difficultyRewardService)
     {
         public async Task<List<TodoItem>> GetItemsAsync(Guid userId)
         {
@@ -19,36 +22,77 @@ namespace DoodooApi.Services
                 .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
         }
 
-        public async Task<bool> CompleteItemAsync(Guid itemId, Guid userId)
+        public async Task<TransactionProcessResponse> CompleteItemAsync(Guid itemId, Guid userId)
         {
             var item = await context.TodoItems
                 .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
 
-            if (item == null) return false;
+            if (item == null)
+                return new() { ResponseCode = TransactionResponseCode.ItemNotFound };
+
+            if (item.CompletedTimestamp != null)
+                return new() { ResponseCode = TransactionResponseCode.AlreadyCompleted };
+
+            // Get currency account for user
+            var currencyAccount = await currencyAccountService.GetCurrencyAccountAsync(userId);
+            if (currencyAccount == null) return new() { ResponseCode = TransactionResponseCode.CurrencyAccountNotFound };
+
+            // Get reward amount based on item difficulty
+            var rewards = await difficultyRewardService.GetRewardsByDifficultyAsync(item.ItemDifficulty);
+
+            var transactionRequest = new CreateTransactionRequest
+            {
+                CurrencyAccountId = currencyAccount.Id,
+                SourceType = TransactionSourceType.ItemCompletion,
+                SourceIdGuid = item.Id,
+                TransactionRecords = [.. rewards.Select(reward =>
+                {
+                    return new TransactionRecordRequest
+                    {
+                        CurrencyType = reward.CurrencyType,
+                        Value = reward.Value
+                    };
+                })],
+            };
+
+            // Create reward transaction for completing the item
+            var transactionResponse = await transactionService.MakeTransactionAsync(transactionRequest);
+
+            if (transactionResponse.ResponseCode != TransactionResponseCode.Created)
+                return new() { ResponseCode = transactionResponse.ResponseCode };
+
+            item.CompletedTimestamp = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            return new() { TransactionId = transactionResponse.TransactionId, ResponseCode = TransactionResponseCode.Completed };
+        }
+
+        public async Task<TransactionProcessResponse> UndoCompletionAsync(Guid itemId, Guid userId)
+        {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null) return new TransactionProcessResponse { ResponseCode = TransactionResponseCode.ItemNotFound };
 
             if (item.CompletedTimestamp == null)
             {
-                item.CompletedTimestamp = DateTime.UtcNow;
-                await context.SaveChangesAsync();
+                return new TransactionProcessResponse { ResponseCode = TransactionResponseCode.AlreadyReverted };
             }
 
-            return true;
-        }
+            // Get the transaction associated with completing this item
+            var transaction = await transactionService.GetTransactionBySourceAsync(TransactionSourceType.ItemCompletion, item.Id);
 
-        public async Task<bool> UndoCompletionAsync(Guid itemId, Guid userId)
-        {
-            var item = await context.TodoItems
-                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+            if (transaction == null) return new TransactionProcessResponse { ResponseCode = TransactionResponseCode.NoTransactionFound };
 
-            if (item == null) return false;
+            // Undo transaction
+            var undoResponseCode = await transactionService.UndoTransactionAsync(transaction.Id);
+            if (undoResponseCode != TransactionResponseCode.Deleted)
+                return new TransactionProcessResponse { ResponseCode = undoResponseCode };
 
-            if (item.CompletedTimestamp != null)
-            {
-                item.CompletedTimestamp = null;
-                await context.SaveChangesAsync();
-            }
+            item.CompletedTimestamp = null;
+            await context.SaveChangesAsync();
 
-            return true;
+            return new TransactionProcessResponse { ResponseCode = TransactionResponseCode.Reverted };
         }
 
         public async Task<bool> DeleteItemAsync(Guid itemId, Guid userId)
@@ -63,17 +107,9 @@ namespace DoodooApi.Services
             return true;
         }
 
-        public record CreateTodoItemRequest
-        {
-            public required string Title { get; set; }
-            public string? Description { get; set; }
-            public ItemDifficulty ItemDifficulty { get; set; } = ItemDifficulty.Easy;
-            public ItemCategory ItemCategory { get; set; }
-        }
-
         public async Task<TodoItem> CreateItemAsync(Guid userId, CreateTodoItemRequest request)
         {
-            var newItem = mapper.Map<TodoItem>(request);
+            var newItem = request.ToTodoItem();
 
             newItem.Id = Guid.NewGuid();
             newItem.OwnerId = userId;

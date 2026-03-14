@@ -1,31 +1,19 @@
-﻿using AutoMapper;
-using DoodooApi.Models;
-using DoodooApi.Models.Database;
+﻿using DoodooApi.Models.Database;
 using DoodooApi.Models.Enums;
+using DoodooApi.Models.Main.Transactions;
+using DoodooApi.Models.Mappings;
+using DoodooApi.Models.Requests.Transactions;
+using DoodooApi.Models.Responses.Transactions;
 using Microsoft.EntityFrameworkCore;
 
 namespace DoodooApi.Services
 {
-    public class TransactionService(AppDbContext context, IMapper mapper)
+    public class TransactionService(AppDbContext context)
     {
-        public record CreateTransactionRequest
-        {
-            public required TransactionSourceType SourceType { get; set; }
-            public Guid? SourceIdGuid { get; set; }
-            public int? SourceIdInt { get; set; }
-            public required Guid CurrencyAccountId { get; set; }
-            public List<TransactionRecord> TransactionRecords { get; set; } = [];
-        }
 
-        public record TransactionResponse
+        public async Task<TransactionProcessResponse> MakeTransactionAsync(CreateTransactionRequest transactionRequest)
         {
-            public TransactionResponseCode ResponseCode { get; set; }
-            public Guid? TransactionId { get; set; }
-        }
-
-        public async Task<TransactionResponse> MakeTransaction(CreateTransactionRequest transactionRequest)
-        {
-            var transaction = mapper.Map<Transaction>(transactionRequest);
+            var transaction = transactionRequest.ToTransaction();
 
             var currencyAccountUpdated = await HandleCurrencyAccountChanges(transaction);
 
@@ -44,11 +32,12 @@ namespace DoodooApi.Services
             return new()
             {
                 ResponseCode = TransactionResponseCode.Created,
-                TransactionId = transaction.Id
+                TransactionId = transaction.Id,
+                Transaction = transaction.ToTransactionResponse()
             };
         }
 
-        public async Task<TransactionResponseCode> UndoTransaction(Guid transactionId)
+        public async Task<TransactionResponseCode> UndoTransactionAsync(Guid transactionId)
         {
             var transaction = await context.Transactions
                 .Include(t => t.TransactionRecords)
@@ -70,6 +59,15 @@ namespace DoodooApi.Services
             await context.SaveChangesAsync();
 
             return TransactionResponseCode.Deleted;
+        }
+
+        public async Task<Transaction?> GetTransactionBySourceAsync(TransactionSourceType itemCompletion, Guid id)
+        {
+            return await context.Transactions
+                .Include(t => t.TransactionRecords)
+                .FirstOrDefaultAsync(t =>
+                    t.SourceType == itemCompletion &&
+                    t.SourceIdGuid == id);
         }
 
         private async Task<bool> HandleCurrencyAccountChanges(Transaction transaction, bool reverse = false)
@@ -101,6 +99,16 @@ namespace DoodooApi.Services
             }
 
             return true;
+        }
+
+        public async Task<List<Transaction>> GetTransactionsByUserIdAsync(Guid userId)
+        {
+            return await context.Transactions
+                .Include(t => t.TransactionRecords)
+                .Where(t =>
+                    t.CurrencyAccount != null &&
+                    t.CurrencyAccount.OwnerId == userId)
+                .ToListAsync();
         }
     }
 }

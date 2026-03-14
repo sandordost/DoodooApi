@@ -1,4 +1,4 @@
-﻿using DoodooApi.Models.Users;
+﻿using DoodooApi.Models.Main.Users;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 

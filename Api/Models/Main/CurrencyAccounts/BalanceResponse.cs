@@ -1,4 +1,4 @@
-﻿namespace DoodooApi.Models.CurrencyAccounts
+﻿namespace DoodooApi.Models.Main.CurrencyAccounts
 {
     public class BalanceResponse
     {

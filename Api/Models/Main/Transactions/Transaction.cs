@@ -1,7 +1,7 @@
-﻿using DoodooApi.Models.CurrencyAccounts;
-using DoodooApi.Models.Enums;
+﻿using DoodooApi.Models.Enums;
+using DoodooApi.Models.Main.CurrencyAccounts;
 
-namespace DoodooApi.Models
+namespace DoodooApi.Models.Main.Transactions
 {
     public class Transaction
     {

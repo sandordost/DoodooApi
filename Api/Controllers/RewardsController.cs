@@ -1,4 +1,6 @@
-﻿using DoodooApi.Models.Enums;
+﻿using DoodooApi.Models.Requests.Rewards;
+using DoodooApi.Models.Responses.Rewards;
+using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Models.Rewards;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -12,34 +14,89 @@ namespace DoodooApi.Controllers
     public class RewardsController(RewardService rewardService, UserService userService) : ControllerBase
     {
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Reward>>> GetRewards()
+        public async Task<ActionResult<IEnumerable<RewardResponse>>> GetRewards()
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var rewards = await rewardService.GetRewards(userId);
 
-            return Ok(rewards);
+            var response = rewards.Select(reward =>
+            {
+                return new RewardResponse
+                {
+                    Name = reward.Name,
+                    Description = reward.Description,
+                    Icon = reward.Icon,
+                    Id = reward.Id,
+                    RewardCosts = [.. reward.RewardCosts.Select(rewardCost =>
+                    {
+                        return new RewardCostResponse
+                        {
+                            Amount = rewardCost.Amount,
+                            CurrencyType = rewardCost.CurrencyType,
+                            Id = rewardCost.Id
+                        };
+                    })]
+                };
+            }).ToList();
+
+            return Ok(response);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Reward>> CreateReward(RewardService.CreateRewardRequest request)
+        public async Task<ActionResult<RewardResponse>> CreateReward(CreateRewardRequest request)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
 
             // Forceer ownership op basis van ingelogde user
             request.OwnerId = userId;
 
-            var reward = await rewardService.CreateReward(request);
+            var newReward = await rewardService.CreateReward(request);
 
-            if (reward == null)
+            if (newReward == null)
             {
                 return BadRequest("Failed to create reward.");
             }
 
-            return CreatedAtAction(nameof(GetRewards), new { id = reward.Id }, reward);
+            var response = new RewardResponse()
+            {
+                Id = newReward.Id,
+                Name = newReward.Name,
+                Description = newReward.Description,
+                Icon = newReward.Icon,
+                RewardCosts = [.. newReward.RewardCosts.Select(rewardCost =>
+                    new RewardCostResponse()
+                    {
+                        Id = rewardCost.Id,
+                        CurrencyType = rewardCost.CurrencyType,
+                        Amount = rewardCost.Amount
+                    }
+                )]
+            };
+
+            return CreatedAtAction(nameof(GetRewards), new { id = response.Id }, response);
+        }
+        [HttpGet("{rewardId:int}/claims")]
+        public async Task<ActionResult<IEnumerable<RewardClaimResponse>>> GetRewardClaims(int rewardId)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var claims = await rewardService.GetRewardClaimsAsync(rewardId);
+
+            var response = claims.Select(claim =>
+            {
+                return new RewardClaimResponse
+                {
+                    Id = claim.Id,
+                    ClaimedAt = claim.ClaimedAt,
+                    RewardId = claim.RewardId,
+                    TransactionId = claim.TransactionId,
+                };
+            }).ToList();
+
+            return Ok(response);
         }
 
-        [HttpPost("{rewardId:int}/claim")]
-        public async Task<ActionResult<TransactionResponseCode>> ClaimReward(int rewardId)
+        [HttpPost("{rewardId:int}/claims")]
+        public async Task<ActionResult<ClaimRewardResponse>> ClaimReward(int rewardId)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var result = await rewardService.ClaimReward(rewardId, userId);
@@ -48,10 +105,10 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("claims/{rewardClaimId:int}/undo")]
-        public async Task<ActionResult<TransactionResponseCode>> UndoClaim(int rewardClaimId)
+        public async Task<ActionResult<TransactionProcessResponse>> UndoClaim(int rewardClaimId)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
-            var result = await rewardService.UndoClaim(rewardClaimId, userId);
+            var result = await rewardService.UndoRewardClaim(rewardClaimId, userId);
 
             return result;
         }
