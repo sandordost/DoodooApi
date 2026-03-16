@@ -14,7 +14,11 @@ namespace DoodooApi.Services
     {
         public async Task<List<Reward>> GetRewards(Guid userId)
         {
-            var rewards = await context.Users.Where(u => u.Id == userId).Select(u => u.Rewards).FirstOrDefaultAsync();
+            var rewards = await context.Users.Where(u => u.Id == userId)
+                .Include(u => u.Rewards)
+                .ThenInclude(r => r.RewardCosts)
+                .Select(u => u.Rewards)
+                .FirstOrDefaultAsync();
 
             rewards = rewards?.Where(r => !r.IsDeleted).ToList();
 
