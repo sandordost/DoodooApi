@@ -49,6 +49,7 @@ namespace DoodooApi.Services
 
             reward.Name = rewardRequest.Name;
             reward.Description = rewardRequest.Description;
+            reward.Icon = rewardRequest.Icon;
 
             // Update costs
             context.RewardCosts.RemoveRange(reward.RewardCosts);
