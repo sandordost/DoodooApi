@@ -41,6 +41,19 @@ namespace DoodooApi.Controllers
             return Ok(item);
         }
 
+        [HttpPatch("{id}")]
+        public async Task<ActionResult<TodoItem>> UpdateTodoItem(Guid id, UpdateTodoItemRequest request)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var updatedItem = await todoItemService.UpdateItemAsync(id, userId, request);
+
+            if (updatedItem == null)
+            {
+                return NotFound();
+            }
+            return Ok(updatedItem);
+        }
+
         [HttpPost]
         public async Task<ActionResult<TodoItem>> CreateTodoItem(CreateTodoItemRequest request)
         {

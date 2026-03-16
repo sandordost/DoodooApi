@@ -121,5 +121,22 @@ namespace DoodooApi.Services
 
             return newItem;
         }
+
+        public async Task<TodoItem?> UpdateItemAsync(Guid id, Guid userId, UpdateTodoItemRequest request)
+        {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == id && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null)
+                return null;
+
+            item.Title = request.Title ?? item.Title;
+            item.Description = request.Description ?? item.Description;
+            item.ItemDifficulty = request.ItemDifficulty ?? item.ItemDifficulty;
+            item.ItemCategory = request.ItemCategory ?? item.ItemCategory;
+            await context.SaveChangesAsync();
+
+            return item;
+        }
     }
 }
