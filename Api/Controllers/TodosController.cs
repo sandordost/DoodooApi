@@ -107,5 +107,30 @@ namespace DoodooApi.Controllers
 
             return Ok(transactionResponse);
         }
+
+        [HttpGet("DailyCheck")]
+        public async Task<ActionResult<bool>> DailyCheck()
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var user = await userService.GetCurrentUserAsync();
+
+            if (user == null)
+            {
+                return Unauthorized(false);
+            }
+
+            // Check if the user has already done the daily reset today, if so, return false, otherwise reset the daily items and return true
+            if (user.LastSeen.Date < DateTime.UtcNow.Date)
+            {
+                await todoItemService.ResetDailyItemsAsync(userId);
+                await userService.UpdateLastSeen();
+                return Ok(true);
+            }
+
+            else
+            {
+                return Ok(false);
+            }
+        }
     }
 }

@@ -33,5 +33,15 @@ namespace DoodooApi.Services
 
             return await userManager.FindByIdAsync(id.Value.ToString());
         }
+
+        public async Task<bool> UpdateLastSeen()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return false;
+
+            user.LastSeen = DateTime.UtcNow;
+            await userManager.UpdateAsync(user);
+            return true;
+        }
     }
 }

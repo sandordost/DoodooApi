@@ -138,5 +138,21 @@ namespace DoodooApi.Services
 
             return item;
         }
+
+        public async Task<bool> ResetDailyItemsAsync(Guid userId)
+        {
+            var dailyItems = await context.TodoItems
+                .Where(i => i.OwnerId == userId && i.ItemCategory == ItemCategory.Daily && i.DeletedTimestamp == null)
+                .ToListAsync();
+
+            foreach (var item in dailyItems)
+            {
+                item.CompletedTimestamp = null;
+            }
+
+            await context.SaveChangesAsync();
+
+            return true;
+        }
     }
 }
