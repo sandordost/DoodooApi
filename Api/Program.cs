@@ -69,7 +69,8 @@ builder.Services.AddIdentityCore<AppUser>(opt =>
 })
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddApiEndpoints();
+    .AddApiEndpoints()
+    .AddUserManager<AppUserManager>();
 
 builder.Services.AddAuthentication()
     .AddBearerToken(IdentityConstants.BearerScheme);
