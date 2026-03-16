@@ -169,5 +169,22 @@ namespace DoodooApi.Services
                 .Where(rc => rc.RewardId == rewardId)
                 .ToListAsync();
         }
+
+        public async Task<bool> DeleteReward(int rewardId, Guid userId)
+        {
+            var reward = await context.Rewards
+                .Include(r => r.Owner)
+                .FirstOrDefaultAsync(r => r.Id == rewardId && !r.IsDeleted);
+
+            if (reward?.Owner == null || reward.Owner.Id != userId)
+            {
+                return false;
+            }
+
+            reward.IsDeleted = true;
+            await context.SaveChangesAsync();
+
+            return true;
+        }
     }
 }

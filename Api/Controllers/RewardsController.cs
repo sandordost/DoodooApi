@@ -42,6 +42,18 @@ namespace DoodooApi.Controllers
             return Ok(response);
         }
 
+        [HttpDelete("{rewardId:int}")]
+        public async Task<ActionResult> DeleteReward(int rewardId)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var success = await rewardService.DeleteReward(rewardId, userId);
+            if (!success)
+            {
+                return NotFound("Reward not found or you do not have permission to delete it.");
+            }
+            return NoContent();
+        }
+
         [HttpPost]
         public async Task<ActionResult<RewardResponse>> CreateReward(CreateRewardRequest request)
         {
