@@ -87,6 +87,34 @@ namespace DoodooApi.Controllers
 
             return CreatedAtAction(nameof(GetRewards), new { id = response.Id }, response);
         }
+
+        [HttpPatch("{rewardId:int}")]
+        public async Task<ActionResult<RewardResponse>> UpdateReward(int rewardId, UpdateRewardRequest request)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var updatedReward = await rewardService.UpdateReward(request, rewardId, userId);
+            if (updatedReward == null)
+            {
+                return NotFound("Reward not found or you do not have permission to update it.");
+            }
+            var response = new RewardResponse()
+            {
+                Id = updatedReward.Id,
+                Name = updatedReward.Name,
+                Description = updatedReward.Description,
+                Icon = updatedReward.Icon,
+                RewardCosts = [.. updatedReward.RewardCosts.Select(rewardCost =>
+                    new RewardCostResponse()
+                    {
+                        Id = rewardCost.Id,
+                        CurrencyType = rewardCost.CurrencyType,
+                        Amount = rewardCost.Amount
+                    }
+                )]
+            };
+            return Ok(response);
+        }
+
         [HttpGet("{rewardId:int}/claims")]
         public async Task<ActionResult<IEnumerable<RewardClaimResponse>>> GetRewardClaims(int rewardId)
         {

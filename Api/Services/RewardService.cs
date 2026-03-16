@@ -34,6 +34,35 @@ namespace DoodooApi.Services
 
             return newReward;
         }
+
+        public async Task<Reward> UpdateReward(UpdateRewardRequest rewardRequest, int rewardId, Guid userId)
+        {
+            var reward = await context.Rewards
+                .Include(r => r.Owner)
+                .Include(r => r.RewardCosts)
+                .FirstOrDefaultAsync(r => r.Id == rewardId && !r.IsDeleted);
+
+            if (reward == null || reward.Owner == null || reward.Owner.Id != userId)
+            {
+                throw new NullReferenceException("Reward not found or user is not the owner");
+            }
+
+            reward.Name = rewardRequest.Name;
+            reward.Description = rewardRequest.Description;
+
+            // Update costs
+            context.RewardCosts.RemoveRange(reward.RewardCosts);
+            reward.RewardCosts = [.. rewardRequest.RewardCosts.Select(c => new RewardCost
+            {
+                CurrencyType = c.CurrencyType,
+                Amount = c.Amount,
+                RewardId = reward.Id
+            })];
+
+            await context.SaveChangesAsync();
+            return reward;
+        }
+
         public async Task<ClaimRewardResponse> ClaimReward(int rewardId, Guid userId)
         {
             var user = await context.Users
