@@ -120,6 +120,7 @@ namespace DoodooApi.Controllers
             return Ok(transactionResponse);
         }
 
+        [HttpPost("DailyCheck")]
         public async Task<ActionResult<bool>> DailyCheck()
         {
             var userId = userService.GetCurrentUserIdOrThrow();
