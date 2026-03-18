@@ -38,7 +38,7 @@ namespace DoodooApi.Services
             if (currencyAccount == null) return new() { ResponseCode = TransactionResponseCode.CurrencyAccountNotFound };
 
             // Get reward amount based on item difficulty
-            var rewards = await difficultyRewardService.GetRewardsByDifficultyAsync(item.ItemDifficulty);
+            var rewards = await difficultyRewardService.GetRewardsByDifficultyAsync(item.ItemDifficulty, userId, itemId, DateTime.UtcNow);
 
             var transactionRequest = new CreateTransactionRequest
             {
