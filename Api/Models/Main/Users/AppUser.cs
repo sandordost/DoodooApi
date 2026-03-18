@@ -11,6 +11,6 @@ namespace DoodooApi.Models.Main.Users
         public CurrencyAccount? CurrencyAccount { get; set; }
         public List<Reward> Rewards { get; set; } = [];
         public List<RewardClaim> RewardClaims { get; set; } = [];
-        public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+        public DateTime? LastDailyReset { get; set; }
     }
 }

@@ -80,6 +80,18 @@ namespace DoodooApi.Controllers
             return BadRequest(response);
         }
 
+        [HttpPost("{id}/Reset")]
+        public async Task<ActionResult> ResetTodoItem(Guid id)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+            var response = await todoItemService.ResetItemAsync(id, userId);
+
+            if (response == true)
+                return Ok();
+
+            return BadRequest("Could not reset currenct item");
+        }
+
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoItem(Guid id)
         {
@@ -108,7 +120,6 @@ namespace DoodooApi.Controllers
             return Ok(transactionResponse);
         }
 
-        [HttpGet("DailyCheck")]
         public async Task<ActionResult<bool>> DailyCheck()
         {
             var userId = userService.GetCurrentUserIdOrThrow();
@@ -119,18 +130,22 @@ namespace DoodooApi.Controllers
                 return Unauthorized(false);
             }
 
-            // Check if the user has already done the daily reset today, if so, return false, otherwise reset the daily items and return true
-            if (user.LastSeen.Date < DateTime.UtcNow.Date)
-            {
-                await todoItemService.ResetDailyItemsAsync(userId);
-                await userService.UpdateLastSeen();
-                return Ok(true);
-            }
+            var today = DateTime.UtcNow.Date;
 
-            else
+            var needsReset = user.LastDailyReset == null
+                || user.LastDailyReset.Value.Date < today;
+
+            if (!needsReset)
             {
                 return Ok(false);
             }
+
+            await todoItemService.ResetDailyItemsAsync(userId);
+
+            user.LastDailyReset = today;
+            await userService.UpdateUserAsync(user);
+
+            return Ok(true);
         }
     }
 }

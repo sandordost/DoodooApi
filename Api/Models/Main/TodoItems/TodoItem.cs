@@ -12,7 +12,12 @@ namespace DoodooApi.Models.Main.TodoItems
         public Guid OwnerId { get; set; }
         public AppUser? Owner { get; set; }
         public DateTime? CompletedTimestamp { get; set; }
+        public DateTime? LastCompletedTimestamp { get; set; }
+        public DateTime? PreviousCompletedTimestamp { get; set; }
         public DateTime? DeletedTimestamp { get; set; }
         public ItemCategory ItemCategory { get; set; }
+        public int? DailyStreak { get; set; }
+        public int? WeeklyStreak { get; set; }
+        public DateTime? LastWeeklyCheck { get; set; }
     }
 }

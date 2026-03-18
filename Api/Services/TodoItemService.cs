@@ -61,7 +61,9 @@ namespace DoodooApi.Services
             if (transactionResponse.ResponseCode != TransactionResponseCode.Created)
                 return new() { ResponseCode = transactionResponse.ResponseCode };
 
+            item.PreviousCompletedTimestamp = item.LastCompletedTimestamp;
             item.CompletedTimestamp = DateTime.UtcNow;
+            item.LastCompletedTimestamp = DateTime.UtcNow;
             await context.SaveChangesAsync();
 
             return new() { TransactionId = transactionResponse.TransactionId, ResponseCode = TransactionResponseCode.Completed };
@@ -90,6 +92,7 @@ namespace DoodooApi.Services
                 return new TransactionProcessResponse { ResponseCode = undoResponseCode };
 
             item.CompletedTimestamp = null;
+            item.LastCompletedTimestamp = item.PreviousCompletedTimestamp;
             await context.SaveChangesAsync();
 
             return new TransactionProcessResponse { ResponseCode = TransactionResponseCode.Reverted };
@@ -139,20 +142,79 @@ namespace DoodooApi.Services
             return item;
         }
 
-        public async Task<bool> ResetDailyItemsAsync(Guid userId)
+        public async Task<bool> ResetItemAsync(Guid itemId, Guid userId)
         {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null) return false;
+
+            item.CompletedTimestamp = null;
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task ResetDailyItemsAsync(Guid userId)
+        {
+            var today = DateTime.UtcNow.Date;
+
             var dailyItems = await context.TodoItems
-                .Where(i => i.OwnerId == userId && i.ItemCategory == ItemCategory.Daily && i.DeletedTimestamp == null)
+                .Where(i => i.OwnerId == userId
+                    && i.ItemCategory == ItemCategory.Daily
+                    && i.DeletedTimestamp == null)
                 .ToListAsync();
 
             foreach (var item in dailyItems)
             {
+                ProcessDailyReset(item, today);
+                ProcessWeeklyReset(item, today);
+
                 item.CompletedTimestamp = null;
             }
 
             await context.SaveChangesAsync();
+        }
 
-            return true;
+        private static void ProcessDailyReset(TodoItem item, DateTime today)
+        {
+            var yesterday = today.AddDays(-1);
+            var lastCompletedDate = item.LastCompletedTimestamp?.Date;
+
+            item.DailyStreak = lastCompletedDate == yesterday
+                ? item.DailyStreak + 1
+                : 0;
+        }
+
+        private static void ProcessWeeklyReset(TodoItem item, DateTime today)
+        {
+            var currentWeekStart = StartOfWeek(today);
+            var previousWeekStart = currentWeekStart.AddDays(-7);
+
+            var shouldCheckWeekly = item.LastWeeklyCheck == null
+                || item.LastWeeklyCheck.Value.Date < currentWeekStart;
+
+            if (!shouldCheckWeekly)
+            {
+                return;
+            }
+
+            var lastCompletedDate = item.LastCompletedTimestamp?.Date;
+            var completedInPreviousWeek =
+                lastCompletedDate.HasValue &&
+                lastCompletedDate.Value >= previousWeekStart &&
+                lastCompletedDate.Value < currentWeekStart;
+
+            item.WeeklyStreak = completedInPreviousWeek
+                ? item.WeeklyStreak + 1
+                : 0;
+
+            item.LastWeeklyCheck = today;
+        }
+
+        private static DateTime StartOfWeek(DateTime date)
+        {
+            var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return date.AddDays(-diff).Date;
         }
     }
 }
