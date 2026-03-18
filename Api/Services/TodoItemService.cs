@@ -175,6 +175,19 @@ namespace DoodooApi.Services
             await context.SaveChangesAsync();
         }
 
+        public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
+        {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null) return false;
+
+            item.Order = newOrder;
+            await context.SaveChangesAsync();
+
+            return true;
+        }
+
         private static void ProcessDailyReset(TodoItem item, DateTime today)
         {
             var yesterday = today.AddDays(-1);

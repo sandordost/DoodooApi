@@ -19,5 +19,6 @@ namespace DoodooApi.Models.Main.TodoItems
         public int? DailyStreak { get; set; }
         public int? WeeklyStreak { get; set; }
         public DateTime? LastWeeklyCheck { get; set; }
+        public int Order { get; set; } = 0;
     }
 }

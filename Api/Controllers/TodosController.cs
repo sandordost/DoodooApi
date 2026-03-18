@@ -120,6 +120,22 @@ namespace DoodooApi.Controllers
             return Ok(transactionResponse);
         }
 
+        [HttpPut("{id}/Order/{order}")]
+        public async Task<ActionResult> UpdateOrder(Guid id, int order)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+
+            var success = await todoItemService.SetItemOrder(id, userId, order);
+            if (!success)
+            {
+                return BadRequest(
+                    new { Message = "Failed to update item order. Please ensure the item exists and belongs to you." }
+                );
+            }
+
+            return NoContent();
+        }
+
         [HttpPost("DailyCheck")]
         public async Task<ActionResult<bool>> DailyCheck()
         {

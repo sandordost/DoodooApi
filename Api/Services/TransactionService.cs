@@ -101,13 +101,15 @@ namespace DoodooApi.Services
             return true;
         }
 
-        public async Task<List<Transaction>> GetTransactionsByUserIdAsync(Guid userId)
+        public async Task<List<Transaction>> GetTransactionsByUserIdAsync(Guid userId, int limit = 50)
         {
             return await context.Transactions
                 .Include(t => t.TransactionRecords)
                 .Where(t =>
                     t.CurrencyAccount != null &&
                     t.CurrencyAccount.OwnerId == userId)
+                .OrderByDescending(t => t.CreatedTimestamp)
+                .Take(limit)
                 .ToListAsync();
         }
     }
