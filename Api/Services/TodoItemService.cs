@@ -38,7 +38,10 @@ namespace DoodooApi.Services
 
             if (!IsActiveOn(item.ActiveDays, today.DayOfWeek))
             {
-                return new() { ResponseCode = TransactionResponseCode.ItemNotFound };
+                if (item.ItemCategory == ItemCategory.Daily)
+                {
+                    return new() { ResponseCode = TransactionResponseCode.AlreadyCompleted };
+                }
             }
 
             var currencyAccount = await currencyAccountService.GetCurrencyAccountAsync(userId);
