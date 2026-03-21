@@ -6,6 +6,7 @@ using DoodooApi.Models.Requests.TodoItems;
 using DoodooApi.Models.Requests.Transactions;
 using DoodooApi.Models.Responses.Transactions;
 using Microsoft.EntityFrameworkCore;
+using static DoodooApi.Helpers.ActiveDaysHelper;
 
 namespace DoodooApi.Services
 {
@@ -21,7 +22,6 @@ namespace DoodooApi.Services
             return await context.TodoItems
                 .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
         }
-
         public async Task<TransactionProcessResponse> CompleteItemAsync(Guid itemId, Guid userId)
         {
             var item = await context.TodoItems
@@ -33,40 +33,61 @@ namespace DoodooApi.Services
             if (item.CompletedTimestamp != null)
                 return new() { ResponseCode = TransactionResponseCode.AlreadyCompleted };
 
-            // Get currency account for user
-            var currencyAccount = await currencyAccountService.GetCurrencyAccountAsync(userId);
-            if (currencyAccount == null) return new() { ResponseCode = TransactionResponseCode.CurrencyAccountNotFound };
+            var completedAt = DateTime.UtcNow;
+            var today = completedAt.Date;
 
-            // Get reward amount based on item difficulty
-            var rewards = await difficultyRewardService.GetRewardsByDifficultyAsync(item.ItemDifficulty, userId, itemId, DateTime.UtcNow);
+            if (!IsActiveOn(item.ActiveDays, today.DayOfWeek))
+            {
+                return new() { ResponseCode = TransactionResponseCode.ItemNotFound };
+            }
+
+            var currencyAccount = await currencyAccountService.GetCurrencyAccountAsync(userId);
+            if (currencyAccount == null)
+                return new() { ResponseCode = TransactionResponseCode.CurrencyAccountNotFound };
+
+            var rewards = await difficultyRewardService.GetRewardsByDifficultyAsync(
+                item.ItemDifficulty,
+                userId,
+                itemId,
+                completedAt
+            );
 
             var transactionRequest = new CreateTransactionRequest
             {
                 CurrencyAccountId = currencyAccount.Id,
                 SourceType = TransactionSourceType.ItemCompletion,
                 SourceIdGuid = item.Id,
-                TransactionRecords = [.. rewards.Select(reward =>
-                {
-                    return new TransactionRecordRequest
-                    {
-                        CurrencyType = reward.CurrencyType,
-                        Value = reward.Value
-                    };
-                })],
+                TransactionRecords = [.. rewards.Select(reward => new TransactionRecordRequest
+        {
+            CurrencyType = reward.CurrencyType,
+            Value = reward.Value
+        })],
             };
 
-            // Create reward transaction for completing the item
             var transactionResponse = await transactionService.MakeTransactionAsync(transactionRequest);
 
             if (transactionResponse.ResponseCode != TransactionResponseCode.Created)
                 return new() { ResponseCode = transactionResponse.ResponseCode };
 
+            var previousActiveDate = GetPreviousActiveDate(item.ActiveDays, today);
+            var lastCompletedDate = item.LastCompletedTimestamp?.Date;
+
+            item.DailyStreak =
+                previousActiveDate.HasValue && lastCompletedDate == previousActiveDate.Value
+                    ? (item.DailyStreak ?? 0) + 1
+                    : 1;
+
             item.PreviousCompletedTimestamp = item.LastCompletedTimestamp;
-            item.CompletedTimestamp = DateTime.UtcNow;
-            item.LastCompletedTimestamp = DateTime.UtcNow;
+            item.CompletedTimestamp = completedAt;
+            item.LastCompletedTimestamp = completedAt;
+
             await context.SaveChangesAsync();
 
-            return new() { TransactionId = transactionResponse.TransactionId, ResponseCode = TransactionResponseCode.Completed };
+            return new()
+            {
+                TransactionId = transactionResponse.TransactionId,
+                ResponseCode = TransactionResponseCode.Completed
+            };
         }
 
         public async Task<TransactionProcessResponse> UndoCompletionAsync(Guid itemId, Guid userId)
@@ -166,36 +187,31 @@ namespace DoodooApi.Services
 
             foreach (var item in dailyItems)
             {
-                ProcessDailyReset(item, today);
                 ProcessWeeklyReset(item, today);
 
+                if (!IsActiveOn(item.ActiveDays, today.DayOfWeek)) continue;
+                if (item.LastResetDate?.Date == today) continue;
+
+                ProcessDailyReset(item, today);
+
                 item.CompletedTimestamp = null;
+                item.LastResetDate = today;
             }
 
             await context.SaveChangesAsync();
         }
 
-        public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
-        {
-            var item = await context.TodoItems
-                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
-
-            if (item == null) return false;
-
-            item.Order = newOrder;
-            await context.SaveChangesAsync();
-
-            return true;
-        }
-
         private static void ProcessDailyReset(TodoItem item, DateTime today)
         {
-            var yesterday = today.AddDays(-1);
+            var previousActiveDay = GetPreviousActiveDate(item.ActiveDays, today);
             var lastCompletedDate = item.LastCompletedTimestamp?.Date;
 
-            item.DailyStreak = lastCompletedDate == yesterday
-                ? item.DailyStreak + 1
-                : 0;
+            if (previousActiveDay.HasValue &&
+                 (!lastCompletedDate.HasValue || lastCompletedDate.Value != previousActiveDay.Value)
+)
+            {
+                item.DailyStreak = 0;
+            }
         }
 
         private static void ProcessWeeklyReset(TodoItem item, DateTime today)
@@ -212,16 +228,30 @@ namespace DoodooApi.Services
             }
 
             var lastCompletedDate = item.LastCompletedTimestamp?.Date;
+
             var completedInPreviousWeek =
                 lastCompletedDate.HasValue &&
                 lastCompletedDate.Value >= previousWeekStart &&
                 lastCompletedDate.Value < currentWeekStart;
 
             item.WeeklyStreak = completedInPreviousWeek
-                ? item.WeeklyStreak + 1
+                ? (item.WeeklyStreak ?? 0) + 1
                 : 0;
 
             item.LastWeeklyCheck = today;
+        }
+
+        public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
+        {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null) return false;
+
+            item.Order = newOrder;
+            await context.SaveChangesAsync();
+
+            return true;
         }
 
         private static DateTime StartOfWeek(DateTime date)

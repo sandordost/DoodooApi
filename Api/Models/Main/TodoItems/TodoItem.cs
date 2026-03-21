@@ -1,4 +1,5 @@
 ﻿using DoodooApi.Models.Enums;
+using DoodooApi.Models.Enums.Flags;
 using DoodooApi.Models.Main.Users;
 
 namespace DoodooApi.Models.Main.TodoItems
@@ -19,6 +20,8 @@ namespace DoodooApi.Models.Main.TodoItems
         public int? DailyStreak { get; set; }
         public int? WeeklyStreak { get; set; }
         public DateTime? LastWeeklyCheck { get; set; }
+        public DateTime? LastResetDate { get; set; }
+        public ActiveDays ActiveDays { get; set; } = ActiveDays.EveryDay;
         public int Order { get; set; } = 0;
     }
 }
