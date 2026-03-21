@@ -158,6 +158,7 @@ namespace DoodooApi.Services
             item.Description = request.Description ?? item.Description;
             item.ItemDifficulty = request.ItemDifficulty ?? item.ItemDifficulty;
             item.ItemCategory = request.ItemCategory ?? item.ItemCategory;
+            item.ActiveDays = request.ActiveDays ?? item.ActiveDays;
             await context.SaveChangesAsync();
 
             return item;

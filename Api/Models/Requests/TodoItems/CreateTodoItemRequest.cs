@@ -1,4 +1,5 @@
 ﻿using DoodooApi.Models.Enums;
+using DoodooApi.Models.Enums.Flags;
 
 namespace DoodooApi.Models.Requests.TodoItems
 {
@@ -8,5 +9,6 @@ namespace DoodooApi.Models.Requests.TodoItems
         public string? Description { get; set; }
         public ItemDifficulty ItemDifficulty { get; set; } = ItemDifficulty.Easy;
         public ItemCategory ItemCategory { get; set; }
+        public ActiveDays ActiveDays { get; set; }
     }
 }
