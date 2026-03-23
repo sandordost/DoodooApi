@@ -115,6 +115,9 @@ namespace DoodooApi.Services
             if (undoResponseCode != TransactionResponseCode.Deleted)
                 return new TransactionProcessResponse { ResponseCode = undoResponseCode };
 
+            // Decrease streak count
+            item.DailyStreak -= 1;
+
             item.CompletedTimestamp = null;
             item.LastCompletedTimestamp = item.PreviousCompletedTimestamp;
             await context.SaveChangesAsync();
@@ -142,6 +145,7 @@ namespace DoodooApi.Services
             newItem.OwnerId = userId;
             newItem.CompletedTimestamp = null;
             newItem.DeletedTimestamp = null;
+            newItem.ActiveDays = request.ActiveDays;
 
             context.TodoItems.Add(newItem);
             await context.SaveChangesAsync();
