@@ -24,7 +24,7 @@ namespace DoodooApi.Controllers
                 return NotFound();
             }
 
-            return Ok(items);
+            return Ok(items.OrderBy(item => item.Order).ToArray());
         }
 
         [HttpGet("{id}")]
