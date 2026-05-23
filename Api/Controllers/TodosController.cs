@@ -1,10 +1,12 @@
 ﻿using DoodooApi.Models.Enums;
 using DoodooApi.Models.Main.TodoItems;
 using DoodooApi.Models.Requests.TodoItems;
+using DoodooApi.Models.Responses.Todos;
 using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using static DoodooApi.Helpers.DateHelpers;
 
 namespace DoodooApi.Controllers
 {
@@ -137,7 +139,7 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("DailyCheck")]
-        public async Task<ActionResult<bool>> DailyCheck()
+        public async Task<ActionResult<DailyCheckResponse>> DailyCheck()
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var user = await userService.GetCurrentUserAsync();
@@ -149,20 +151,35 @@ namespace DoodooApi.Controllers
 
             var today = DateTime.UtcNow.Date;
 
-            var needsReset = user.LastDailyReset == null
+            var needsDailyReset = user.LastDailyReset == null
                 || user.LastDailyReset.Value.Date < today;
 
-            if (!needsReset)
+            // Returns true when current week number is higher then lastWeeklyReset week number, or when lastWeeklyReset is null
+            var needsWeeklyReset = user.LastWeeklyReset == null
+                || (user.LastWeeklyReset.Value.Date < today && GetWeekOfYear(user.LastWeeklyReset.Value) < GetWeekOfYear(today));
+
+            var response = new DailyCheckResponse
             {
-                return Ok(false);
+                DailyHasReset = needsDailyReset,
+                WeeklyHasReset = needsWeeklyReset
+            };
+
+            if (needsDailyReset)
+            {
+                await todoItemService.ResetDailyItemsAsync(userId);
+
+                user.LastDailyReset = today;
+                await userService.UpdateUserAsync(user);
             }
 
-            await todoItemService.ResetDailyItemsAsync(userId);
+            if (needsWeeklyReset)
+            {
+                await todoItemService.ResetWeeklyItemsAsync(userId);
+                user.LastWeeklyReset = today;
+                await userService.UpdateUserAsync(user);
+            }
 
-            user.LastDailyReset = today;
-            await userService.UpdateUserAsync(user);
-
-            return Ok(true);
+            return Ok(response);
         }
     }
 }

@@ -12,5 +12,6 @@ namespace DoodooApi.Models.Main.Users
         public List<Reward> Rewards { get; set; } = [];
         public List<RewardClaim> RewardClaims { get; set; } = [];
         public DateTime? LastDailyReset { get; set; }
+        public DateTime? LastWeeklyReset { get; set; }
     }
 }

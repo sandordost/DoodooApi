@@ -209,6 +209,25 @@ namespace DoodooApi.Services
             await context.SaveChangesAsync();
         }
 
+
+        public async Task ResetWeeklyItemsAsync(Guid userId)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            var weeklyItems = await context.TodoItems
+                .Where(i => i.OwnerId == userId
+                    && i.ItemCategory == ItemCategory.Weekly
+                    && i.DeletedTimestamp == null)
+                .ToListAsync();
+
+            foreach (var item in weeklyItems)
+            {
+                ProcessWeeklyReset(item, today);
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         private static void ProcessDailyReset(TodoItem item, DateTime today)
         {
             var previousActiveDay = GetPreviousActiveDate(item.ActiveDays, today);
