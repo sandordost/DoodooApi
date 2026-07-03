@@ -86,8 +86,9 @@ jobs:
       - name: Build and push (Runtime)
         uses: docker/build-push-action@v6
         with:
-            context: Api
-            file: Api/Dockerfile
+            context: .
+            file: Dockerfile
+            target: final
             push: true
             tags: ${{ steps.meta.outputs.tags }}
             labels: ${{ steps.meta.outputs.labels }}
@@ -97,8 +98,8 @@ jobs:
       - name: Build and push (migrator)
         uses: docker/build-push-action@v6
         with:
-          context: Api
-          file: Api/Dockerfile
+          context: .
+          file: Dockerfile
           target: migrator
           push: true
           tags: |
