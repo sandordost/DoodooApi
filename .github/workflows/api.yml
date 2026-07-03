@@ -2,8 +2,9 @@ name: Api - Test, Build and Push
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "wolverine-update"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
