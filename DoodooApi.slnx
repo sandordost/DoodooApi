@@ -1,4 +1,22 @@
 <Solution>
+  <Folder Name="/Api/" />
+  <Folder Name="/aspire/">
+    <Project Path="aspire/Doodoo.AppHost/Doodoo.AppHost.csproj" />
+    <Project Path="aspire/Doodoo.ServiceDefaults/Doodoo.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/migration/">
+    <Project Path="migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj" />
+  </Folder>
+  <Folder Name="/modules/">
+    <Project Path="modules/Doodoo.Modules.Currency/Doodoo.Modules.Currency.csproj" />
+    <Project Path="modules/Doodoo.Modules.Rewards/Doodoo.Modules.Rewards.csproj" />
+    <Project Path="modules/Doodoo.Modules.Todos/Doodoo.Modules.Todos.csproj" />
+    <Project Path="modules/Doodoo.Modules.Users/Doodoo.Modules.Users.csproj" />
+  </Folder>
+  <Folder Name="/shared/">
+    <Project Path="shared/Doodoo.Messaging.Contracts/Doodoo.Messaging.Contracts.csproj" />
+    <Project Path="shared/Doodoo.SharedKernel/Doodoo.SharedKernel.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="README.md" />
   </Folder>
