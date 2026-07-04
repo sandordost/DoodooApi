@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Database dumps (may contain data + password hashes) - never commit
+doodoo-old.sql
+*.dump
