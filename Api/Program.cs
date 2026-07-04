@@ -4,6 +4,7 @@ using Doodoo.Modules.Todos;
 using Doodoo.Modules.Users;
 using DoodooApi.Models.Main.Users;
 using DoodooApi.Services;
+using DoodooApi.Swagger;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
 using JasperFx.CodeGeneration.Model;
@@ -59,6 +60,9 @@ builder.Services.AddSwaggerGen(options =>
     {
         [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
+
+    // Show enum name<->value mappings in the schema descriptions.
+    options.SchemaFilter<EnumSchemaFilter>();
 });
 builder.Services.AddHttpContextAccessor();
 
