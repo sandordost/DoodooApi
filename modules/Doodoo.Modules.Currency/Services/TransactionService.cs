@@ -62,11 +62,12 @@ namespace DoodooApi.Services
 
         public async Task<Transaction?> GetTransactionBySourceAsync(TransactionSourceType sourceType, Guid id)
         {
+            // Recurring items can have several completion transactions; revert the latest one.
             return await context.Transactions
                 .Include(t => t.TransactionRecords)
-                .FirstOrDefaultAsync(t =>
-                    t.SourceType == sourceType &&
-                    t.SourceIdGuid == id);
+                .Where(t => t.SourceType == sourceType && t.SourceIdGuid == id)
+                .OrderByDescending(t => t.CreatedTimestamp)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<Transaction?> GetTransactionBySourceAsync(TransactionSourceType sourceType, int id)

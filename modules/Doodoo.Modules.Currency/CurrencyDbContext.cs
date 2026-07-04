@@ -47,11 +47,13 @@ namespace Doodoo.Modules.Currency
                     .HasForeignKey(r => r.TransactionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Idempotency: at most one transaction per (source type, source id).
-                transaction.HasIndex(t => new { t.SourceType, t.SourceIdGuid })
-                    .IsUnique()
-                    .HasFilter("\"SourceIdGuid\" IS NOT NULL");
+                // Item completions are append-only: a recurring (daily/weekly) item is
+                // completed many times and each completion is its own transaction, so this
+                // is a plain lookup index, NOT unique. Retry/duplicate-delivery idempotency
+                // is a messaging concern (Wolverine inbox), not a domain constraint.
+                transaction.HasIndex(t => new { t.SourceType, t.SourceIdGuid });
 
+                // Reward claims are one-shot: exactly one debit per claim id, so this stays unique.
                 transaction.HasIndex(t => new { t.SourceType, t.SourceIdInt })
                     .IsUnique()
                     .HasFilter("\"SourceIdInt\" IS NOT NULL");

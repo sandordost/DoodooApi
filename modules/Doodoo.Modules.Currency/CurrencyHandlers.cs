@@ -48,17 +48,9 @@ namespace Doodoo.Modules.Currency
             if (account == null)
                 return new ItemCompletionRewardResult(TransactionResponseCode.CurrencyAccountNotFound, null, 0, 0);
 
-            // Idempotency: a completion for this item was already granted.
-            var existing = await transactionService.GetTransactionBySourceAsync(
-                TransactionSourceType.ItemCompletion, message.ItemId);
-
-            if (existing != null)
-            {
-                var (existingGold, existingSapphires) = SumRecords(existing.TransactionRecords);
-                return new ItemCompletionRewardResult(
-                    TransactionResponseCode.Created, existing.Id, existingGold, existingSapphires);
-            }
-
+            // Append-only: recurring items are completed repeatedly, so each completion is a
+            // new transaction. The Todos module guards against double-completion within a period
+            // (CompletedTimestamp), so we always create here.
             // Rewards module owns the difficulty rule + deterministic RNG.
             var amounts = await bus.InvokeAsync<DifficultyRewardAmounts>(
                 new CalculateDifficultyReward(message.UserId, message.ItemId, message.Difficulty, message.CompletedAtUtc));
@@ -148,21 +140,6 @@ namespace Doodoo.Modules.Currency
         {
             var code = await transactionService.UndoTransactionAsync(message.TransactionId);
             return new RefundResult(code);
-        }
-
-        private static (decimal Gold, int Sapphires) SumRecords(
-            IEnumerable<DoodooApi.Models.Main.Transactions.TransactionRecord> records)
-        {
-            decimal gold = 0;
-            int sapphires = 0;
-            foreach (var record in records)
-            {
-                if (record.CurrencyType == CurrencyType.Gold)
-                    gold += record.Value;
-                else if (record.CurrencyType == CurrencyType.Sapphire)
-                    sapphires += (int)Math.Round(record.Value, MidpointRounding.AwayFromZero);
-            }
-            return (gold, sapphires);
         }
     }
 }
