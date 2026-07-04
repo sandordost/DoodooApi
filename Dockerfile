@@ -11,14 +11,29 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 
+# ---------- Restore (cached layer: only re-runs when a .csproj changes) ----------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY . .
+
+# Copy only the project files first so `dotnet restore` is cached independently of source edits.
+COPY Api/DoodooApi.csproj Api/
+COPY migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj migration/Doodoo.MigrationService/
+COPY shared/Doodoo.SharedKernel/Doodoo.SharedKernel.csproj shared/Doodoo.SharedKernel/
+COPY shared/Doodoo.Messaging.Contracts/Doodoo.Messaging.Contracts.csproj shared/Doodoo.Messaging.Contracts/
+COPY aspire/Doodoo.ServiceDefaults/Doodoo.ServiceDefaults.csproj aspire/Doodoo.ServiceDefaults/
+COPY modules/Doodoo.Modules.Users/Doodoo.Modules.Users.csproj modules/Doodoo.Modules.Users/
+COPY modules/Doodoo.Modules.Currency/Doodoo.Modules.Currency.csproj modules/Doodoo.Modules.Currency/
+COPY modules/Doodoo.Modules.Rewards/Doodoo.Modules.Rewards.csproj modules/Doodoo.Modules.Rewards/
+COPY modules/Doodoo.Modules.Todos/Doodoo.Modules.Todos.csproj modules/Doodoo.Modules.Todos/
+
 RUN dotnet restore Api/DoodooApi.csproj
-RUN dotnet publish Api/DoodooApi.csproj -c $BUILD_CONFIGURATION -o /app/api /p:UseAppHost=false
 RUN dotnet restore migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj
-RUN dotnet publish migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj -c $BUILD_CONFIGURATION -o /app/migrator /p:UseAppHost=false
+
+# Now bring in the rest of the source and publish (restore already done).
+COPY . .
+RUN dotnet publish Api/DoodooApi.csproj -c $BUILD_CONFIGURATION -o /app/api --no-restore /p:UseAppHost=false
+RUN dotnet publish migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj -c $BUILD_CONFIGURATION -o /app/migrator --no-restore /p:UseAppHost=false
 
 # ---------- Migrator (run-once) ----------
 FROM base AS migrator

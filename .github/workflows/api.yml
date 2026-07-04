@@ -15,58 +15,19 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-test:
+  # Build the API + migrator images ONCE, with layer caching, and push them.
+  # Downstream jobs pull these exact images instead of rebuilding.
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Compose up (db + migrator + api)
-        run: docker compose up --build -d
-
-      - name: Show compose status
-        if: always()
-        run: docker compose ps
-
-      - name: Tail api logs
-        if: always()
-        run: docker compose logs doodooapi --no-color --tail=200
-
-      - name: Run Health Check
-        run: |
-          for i in {1..30}; do
-            if curl -fsS http://localhost:5001/health; then
-              echo "healthy"
-              exit 0
-            fi
-            echo "waiting for api... ($i/30)"
-            sleep 2
-          done
-          echo "api not healthy in time"
-          docker compose ps
-          docker compose logs --no-color --tail=200
-          exit 1
-
-      - name: Compose logs (on failure)
-        if: failure()
-        run: docker compose logs --no-color --tail=200
-
-      - name: Compose down
-        if: always()
-        run: docker compose down -v
-
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: build-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/wolverine-update'
+    outputs:
+      api_ref: ${{ steps.tags.outputs.api_ref }}
+      migrator_ref: ${{ steps.tags.outputs.migrator_ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker-container
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -75,43 +36,111 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha
-            type=raw,value=latest
+      - name: Compute image tags
+        id: tags
+        run: |
+          repo="${REGISTRY}/${IMAGE_NAME,,}"          # GHCR requires lowercase
+          sha="${GITHUB_SHA::12}"
+          deploy=false
+          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$GITHUB_REF" = "refs/heads/wolverine-update" ]; then
+            deploy=true
+          fi
 
-      - name: Build and push (Runtime)
+          api_ref="${repo}:sha-${sha}"
+          migrator_ref="${repo}:migrator-${sha}"
+
+          api_tags="$api_ref"
+          migrator_tags="$migrator_ref"
+          if [ "$deploy" = "true" ]; then
+            api_tags="${api_tags}"$'\n'"${repo}:latest"
+            migrator_tags="${migrator_tags}"$'\n'"${repo}:migrator"
+          fi
+
+          echo "api_ref=$api_ref" >> "$GITHUB_OUTPUT"
+          echo "migrator_ref=$migrator_ref" >> "$GITHUB_OUTPUT"
+          {
+            echo "api_tags<<EOF";      echo "$api_tags";      echo "EOF"
+            echo "migrator_tags<<EOF"; echo "$migrator_tags"; echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build & push API
         uses: docker/build-push-action@v6
         with:
-            context: .
-            file: Dockerfile
-            target: final
-            push: true
-            tags: ${{ steps.meta.outputs.tags }}
-            labels: ${{ steps.meta.outputs.labels }}
-            cache-from: type=gha
-            cache-to: type=gha,mode=max
+          context: .
+          file: Dockerfile
+          target: final
+          push: true
+          tags: ${{ steps.tags.outputs.api_tags }}
+          cache-from: type=gha,scope=doodoo
+          cache-to: type=gha,mode=max,scope=doodoo
 
-      - name: Build and push (migrator)
+      - name: Build & push migrator
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           target: migrator
           push: true
-          tags: |
-            ghcr.io/sandordost/doodooapi:migrator
-            ghcr.io/sandordost/doodooapi:migrator-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.tags.outputs.migrator_tags }}
+          cache-from: type=gha,scope=doodoo
+          cache-to: type=gha,mode=max,scope=doodoo
+
+  # Pull the freshly built images and verify the stack boots + is healthy.
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run migrator + API and health-check
+        env:
+          API_IMAGE: ${{ needs.build.outputs.api_ref }}
+          MIGRATOR_IMAGE: ${{ needs.build.outputs.migrator_ref }}
+          CONN: Host=db;Port=5432;Database=doodoodb;Username=doodoo;Password=doodoo
+        run: |
+          set -euo pipefail
+          docker network create doodoo-ci
+          docker run -d --name db --network doodoo-ci \
+            -e POSTGRES_USER=doodoo -e POSTGRES_PASSWORD=doodoo -e POSTGRES_DB=doodoodb \
+            --health-cmd "pg_isready -U doodoo -d doodoodb" --health-interval 2s --health-timeout 2s --health-retries 30 \
+            postgres:16
+
+          echo "Waiting for db to be healthy..."
+          for i in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' db)" = "healthy" ] && break
+            sleep 2
+          done
+
+          echo "Running migrator..."
+          docker run --rm --network doodoo-ci -e ConnectionStrings__Db="$CONN" "$MIGRATOR_IMAGE"
+
+          echo "Starting API..."
+          docker run -d --name api --network doodoo-ci \
+            -e ConnectionStrings__Db="$CONN" -e ASPNETCORE_ENVIRONMENT=Development \
+            -p 5001:8080 "$API_IMAGE"
+
+          echo "Health check..."
+          ok=
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:5001/health; then echo; echo "healthy"; ok=1; break; fi
+            echo "waiting for api... ($i/30)"; sleep 2
+          done
+          if [ -z "$ok" ]; then echo "API not healthy"; docker logs api; exit 1; fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f api db >/dev/null 2>&1 || true
+          docker network rm doodoo-ci >/dev/null 2>&1 || true
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: smoke-test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/wolverine-update'
     steps:
       - name: Deploy over SSH
