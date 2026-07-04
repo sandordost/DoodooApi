@@ -123,19 +123,24 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           envs: GHCR_PAT
+          # The login shell on the server is PowerShell (pwsh), so this script is PowerShell.
           script: |
-            cd /opt/doodoo
+            Set-Location /opt/doodoo
 
-            # (optioneel) login via token in env/secret
-            echo "$GHCR_PAT" | docker login ghcr.io -u sandordost --password-stdin
+            # Login to GHCR
+            $env:GHCR_PAT | docker login ghcr.io -u sandordost --password-stdin
+            if ($LASTEXITCODE -ne 0) { throw "docker login failed" }
 
             # retry pull
-            for i in 1 2 3 4 5; do
-              docker compose pull && break
-              echo "pull failed, retry $i/5..."
-              sleep 5
-            done
+            for ($i = 1; $i -le 5; $i++) {
+              docker compose pull
+              if ($LASTEXITCODE -eq 0) { break }
+              Write-Host "pull failed, retry $i/5..."
+              Start-Sleep -Seconds 5
+            }
 
             docker compose up -d db
             docker compose run --rm migrator
+            if ($LASTEXITCODE -ne 0) { throw "migrator failed" }
             docker compose up -d --remove-orphans
+            if ($LASTEXITCODE -ne 0) { throw "compose up failed" }
