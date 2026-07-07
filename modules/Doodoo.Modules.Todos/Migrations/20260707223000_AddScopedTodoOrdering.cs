@@ -29,16 +29,16 @@ namespace Doodoo.Modules.Todos.Migrations
                 """);
 
             migrationBuilder.CreateIndex(
-                name: "IX_TodoItems_OwnerId_ItemCategory_ParentId_Order",
+                name: "IX_TodoItems_OwnerId_ParentId_ItemCategory_Order",
                 schema: "todos",
                 table: "TodoItems",
-                columns: new[] { "OwnerId", "ItemCategory", "ParentId", "Order" });
+                columns: new[] { "OwnerId", "ParentId", "ItemCategory", "Order" });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_TodoItems_OwnerId_ItemCategory_ParentId_Order",
+                name: "IX_TodoItems_OwnerId_ParentId_ItemCategory_Order",
                 schema: "todos",
                 table: "TodoItems");
         }

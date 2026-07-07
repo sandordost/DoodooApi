@@ -85,7 +85,7 @@ namespace Doodoo.Modules.Todos.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.HasIndex("OwnerId", "ItemCategory", "ParentId", "Order");
+                    b.HasIndex("OwnerId", "ParentId", "ItemCategory", "Order");
 
                     b.HasIndex("ParentId");
 

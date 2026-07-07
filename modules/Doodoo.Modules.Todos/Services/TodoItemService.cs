@@ -391,6 +391,20 @@ namespace Doodoo.Modules.Todos.Services
             return true;
         }
 
+        [Obsolete("Use ReorderItemsAsync instead. This method sets a single item's order without scope normalisation.")]
+        public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
+        {
+            var item = await context.TodoItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+
+            if (item == null) return false;
+
+            item.Order = newOrder;
+            await context.SaveChangesAsync();
+
+            return true;
+        }
+
         private async Task<List<TodoItem>> GetScopeItemsAsync(Guid userId, Guid? parentId, ItemCategory category)
         {
             var query = context.TodoItems
@@ -452,42 +466,33 @@ namespace Doodoo.Modules.Todos.Services
 
         private async Task<bool> IsNextCompletableLeafAsync(Guid userId, TodoItem item)
         {
-            // Preload the full ancestor chain in one pass (item → parent → grandparent → …).
-            var chain = new List<TodoItem> { item };
-            var cur = item;
-            while (cur.ParentId is { } pid)
+            // Load all active items for this user in one round-trip instead of making O(depth)
+            // separate queries for each ancestor level.
+            var allItems = await context.TodoItems
+                .Where(t => t.OwnerId == userId && t.DeletedTimestamp == null)
+                .ToDictionaryAsync(t => t.Id);
+
+            var node = item;
+            while (true)
             {
-                cur = await context.TodoItems
-                    .FirstOrDefaultAsync(t => t.Id == pid && t.OwnerId == userId && t.DeletedTimestamp == null);
-                if (cur is null) break;
-                chain.Add(cur);
+                var hasBlockingSibling = allItems.Values.Any(t =>
+                    t.Id != node.Id &&
+                    t.CompletedTimestamp == null &&
+                    t.Order < node.Order &&
+                    (node.ParentId is { } pid
+                        ? t.ParentId == pid
+                        : t.ParentId == null && t.ItemCategory == node.ItemCategory));
+
+                if (hasBlockingSibling)
+                    return false;
+
+                if (node.ParentId is not { } parentId || !allItems.TryGetValue(parentId, out var parent))
+                    break;
+
+                node = parent;
             }
 
-            // Single bulk query: does any node in the chain have an earlier incomplete sibling?
-            // Each chain node contributes one sub-query; they are combined with UNION ALL and checked
-            // with a single EXISTS, reducing round-trips from O(2×depth) to O(depth)+1.
-            var baseQuery = context.TodoItems
-                .Where(t => t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null);
-
-            IQueryable<TodoItem>? combined = null;
-            foreach (var node in chain)
-            {
-                var nodeId = node.Id;
-                var nodeOrder = node.Order;
-                IQueryable<TodoItem> q;
-                if (node.ParentId is { } parentId)
-                {
-                    q = baseQuery.Where(t => t.Id != nodeId && t.ParentId == parentId && t.Order < nodeOrder);
-                }
-                else
-                {
-                    var cat = node.ItemCategory;
-                    q = baseQuery.Where(t => t.Id != nodeId && t.ParentId == null && t.ItemCategory == cat && t.Order < nodeOrder);
-                }
-                combined = combined is null ? q : combined.Concat(q);
-            }
-
-            return combined is null || !await combined.AnyAsync();
+            return true;
         }
 
         // ---------------- Saga helpers ----------------

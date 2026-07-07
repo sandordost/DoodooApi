@@ -20,7 +20,7 @@ namespace Doodoo.Modules.Todos
                 todo.HasKey(t => t.Id);
                 todo.HasIndex(t => t.OwnerId);
                 todo.HasIndex(t => t.ParentId);
-                todo.HasIndex(t => new { t.OwnerId, t.ItemCategory, t.ParentId, t.Order });
+                todo.HasIndex(t => new { t.OwnerId, t.ParentId, t.ItemCategory, t.Order });
 
                 // Self-reference for saga trees. Hard-delete cascades to children; the app itself
                 // uses soft-delete and cascades DeletedTimestamp recursively in the service.

@@ -148,6 +148,25 @@ namespace DoodooApi.Controllers
             return NoContent();
         }
 
+        [Obsolete("Use PUT /api/Todos/Order instead.")]
+        [HttpPut("{id}/Order/{order}")]
+        public async Task<ActionResult> UpdateOrder(Guid id, int order)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+
+#pragma warning disable CS0618
+            var success = await todoItemService.SetItemOrder(id, userId, order);
+#pragma warning restore CS0618
+            if (!success)
+            {
+                return BadRequest(
+                    new { Message = "Failed to update item order. Please ensure the item exists and belongs to you." }
+                );
+            }
+
+            return NoContent();
+        }
+
         [HttpPost("DailyCheck")]
         public async Task<ActionResult<DailyCheckResponse>> DailyCheck()
         {
