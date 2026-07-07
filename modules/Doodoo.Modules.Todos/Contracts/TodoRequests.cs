@@ -10,6 +10,11 @@ namespace Doodoo.Modules.Todos.Contracts
         public ItemDifficulty ItemDifficulty { get; set; } = ItemDifficulty.Easy;
         public ItemCategory ItemCategory { get; set; }
         public ActiveDays ActiveDays { get; set; }
+
+        // Saga support: mark this item as a saga (container), and/or nest it under an existing saga.
+        // A child inherits its parent saga's ItemCategory.
+        public bool IsSaga { get; set; } = false;
+        public Guid? ParentId { get; set; }
     }
 
     public class UpdateTodoItemRequest
@@ -19,5 +24,7 @@ namespace Doodoo.Modules.Todos.Contracts
         public ItemDifficulty? ItemDifficulty { get; set; }
         public ItemCategory? ItemCategory { get; set; }
         public ActiveDays? ActiveDays { get; set; }
+        public bool? IsSaga { get; set; }
+        public Guid? ParentId { get; set; }
     }
 }

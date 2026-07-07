@@ -46,7 +46,15 @@ namespace DoodooApi.Controllers
         public async Task<ActionResult<TodoItem>> UpdateTodoItem(Guid id, UpdateTodoItemRequest request)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
-            var updatedItem = await todoItemService.UpdateItemAsync(id, userId, request);
+            TodoItem? updatedItem;
+            try
+            {
+                updatedItem = await todoItemService.UpdateItemAsync(id, userId, request);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
             if (updatedItem == null)
             {
@@ -59,11 +67,14 @@ namespace DoodooApi.Controllers
         public async Task<ActionResult<TodoItem>> CreateTodoItem(CreateTodoItemRequest request)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
-            var newItem = await todoItemService.CreateItemAsync(userId, request);
-
-            if (newItem == null)
+            TodoItem newItem;
+            try
             {
-                return BadRequest("Failed to create item");
+                newItem = await todoItemService.CreateItemAsync(userId, request);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
             }
 
             return CreatedAtAction(nameof(GetTodoItems), new { id = newItem.Id }, newItem);
