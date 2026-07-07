@@ -24,5 +24,13 @@ namespace Doodoo.Modules.Todos.Entities
         public DateTime? LastResetDate { get; set; }
         public ActiveDays ActiveDays { get; set; } = ActiveDays.EveryDay;
         public int Order { get; set; } = 0;
+
+        // Saga support: a saga is a container item that cannot be completed directly; it
+        // auto-completes when all its children are complete. Children (regular todos or nested
+        // sagas) reference their parent. A whole saga tree shares one ItemCategory.
+        public bool IsSaga { get; set; } = false;
+        public Guid? ParentId { get; set; }
+        public TodoItem? Parent { get; set; }
+        public List<TodoItem> Children { get; set; } = [];
     }
 }

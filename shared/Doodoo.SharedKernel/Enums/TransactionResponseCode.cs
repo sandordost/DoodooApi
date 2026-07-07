@@ -12,5 +12,6 @@ namespace DoodooApi.Models.Enums
         CurrencyAccountNotFound = 7,
         Reverted = 8,
         InsufficientFunds = 9,
+        SagaNotDirectlyCompletable = 10,
     }
 }

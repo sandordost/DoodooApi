@@ -73,6 +73,49 @@ namespace Doodoo.Modules.Currency
                 response.ResponseCode, response.TransactionId, amounts.Gold, amounts.Sapphires);
         }
 
+        // Todos -> Currency (request/response). Grant the aggregate reward for a completed root saga:
+        // the sum of every descendant leaf's difficulty reward, written as one transaction keyed on
+        // the saga id (so it can be reverted/clawed back as a unit via RevertItemCompletionReward).
+        public static async Task<ItemCompletionRewardResult> Handle(
+            GrantSagaCompletionReward message,
+            CurrencyDbContext db,
+            TransactionService transactionService,
+            IMessageBus bus)
+        {
+            var account = await db.CurrencyAccounts
+                .FirstOrDefaultAsync(ca => ca.OwnerId == message.UserId);
+
+            if (account == null)
+                return new ItemCompletionRewardResult(TransactionResponseCode.CurrencyAccountNotFound, null, 0, 0);
+
+            decimal totalGold = 0;
+            int totalSapphires = 0;
+            foreach (var leaf in message.Leaves)
+            {
+                var amounts = await bus.InvokeAsync<DifficultyRewardAmounts>(
+                    new CalculateDifficultyReward(message.UserId, leaf.ItemId, leaf.Difficulty, message.CompletedAtUtc));
+                totalGold += amounts.Gold;
+                totalSapphires += amounts.Sapphires;
+            }
+
+            var records = new List<TransactionRecordRequest>();
+            if (totalGold != 0)
+                records.Add(new TransactionRecordRequest { CurrencyType = CurrencyType.Gold, Value = totalGold });
+            if (totalSapphires != 0)
+                records.Add(new TransactionRecordRequest { CurrencyType = CurrencyType.Sapphire, Value = totalSapphires });
+
+            var response = await transactionService.MakeTransactionAsync(new CreateTransactionRequest
+            {
+                SourceType = TransactionSourceType.ItemCompletion,
+                SourceIdGuid = message.SagaId,
+                CurrencyAccountId = account.Id,
+                TransactionRecords = records
+            });
+
+            return new ItemCompletionRewardResult(
+                response.ResponseCode, response.TransactionId, totalGold, totalSapphires);
+        }
+
         // Todos -> Currency (compensation). Undo a completion grant.
         public static async Task<RevertResult> Handle(
             RevertItemCompletionReward message,
