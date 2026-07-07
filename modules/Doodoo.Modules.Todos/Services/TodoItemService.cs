@@ -412,12 +412,17 @@ namespace Doodoo.Modules.Todos.Services
             ItemCategory category,
             Guid? excludeItemId = null)
         {
-            var items = await GetScopeItemsAsync(userId, parentId, category);
+            var query = context.TodoItems
+                .Where(t => t.OwnerId == userId && t.DeletedTimestamp == null);
+
+            query = parentId is { } pid
+                ? query.Where(t => t.ParentId == pid)
+                : query.Where(t => t.ParentId == null && t.ItemCategory == category);
 
             if (excludeItemId is { } excludedId)
-                items = items.Where(i => i.Id != excludedId).ToList();
+                query = query.Where(t => t.Id != excludedId);
 
-            return items.Count;
+            return await query.CountAsync();
         }
 
         private async Task NormalizeScopeAsync(Guid userId, Guid? parentId, ItemCategory category)
