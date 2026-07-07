@@ -13,7 +13,13 @@ namespace Doodoo.Modules.Todos.Services
     {
         public async Task<List<TodoItem>> GetItemsAsync(Guid userId)
         {
-            return await context.TodoItems.Where(i => i.OwnerId == userId && i.DeletedTimestamp == null).ToListAsync();
+            return await context.TodoItems
+                .Where(i => i.OwnerId == userId && i.DeletedTimestamp == null)
+                .OrderBy(i => i.ItemCategory)
+                .ThenBy(i => i.ParentId)
+                .ThenBy(i => i.Order)
+                .ThenBy(i => i.Id)
+                .ToListAsync();
         }
 
         public async Task<TodoItem?> GetItemAsync(Guid itemId, Guid userId)
@@ -42,6 +48,9 @@ namespace Doodoo.Modules.Todos.Services
 
             if (!IsActiveOn(item.ActiveDays, today.DayOfWeek) && item.ItemCategory == ItemCategory.Daily)
                 return new() { ResponseCode = TransactionResponseCode.AlreadyCompleted };
+
+            if (!await IsNextCompletableLeafAsync(userId, item))
+                return new() { ResponseCode = TransactionResponseCode.TodoOutOfOrder };
 
             var isRoot = item.ParentId == null;
             Guid? txId = null;
@@ -142,6 +151,8 @@ namespace Doodoo.Modules.Todos.Services
             if (item == null) return false;
 
             var now = DateTime.UtcNow;
+            var affectedParentId = item.ParentId;
+            var affectedCategory = item.ItemCategory;
 
             // Soft-delete the whole subtree (a saga takes its children with it).
             var byParent = await LoadChildLookupAsync(userId);
@@ -150,6 +161,7 @@ namespace Doodoo.Modules.Todos.Services
                 node.DeletedTimestamp = now;
             }
             await context.SaveChangesAsync();
+            await NormalizeScopeAsync(userId, affectedParentId, affectedCategory);
 
             // Removing items can change the parent saga's completeness.
             if (item.ParentId is { } parentId)
@@ -176,6 +188,8 @@ namespace Doodoo.Modules.Todos.Services
                 newItem.ItemCategory = parent.ItemCategory; // children inherit the saga's cadence
             }
 
+            newItem.Order = await GetNextOrderAsync(userId, newItem.ParentId, newItem.ItemCategory);
+
             context.TodoItems.Add(newItem);
             await context.SaveChangesAsync();
 
@@ -193,6 +207,10 @@ namespace Doodoo.Modules.Todos.Services
 
             if (item == null)
                 return null;
+
+            var originalParentId = item.ParentId;
+            var originalCategory = item.ItemCategory;
+            var scopeChanged = false;
 
             // Transform into a saga: only allowed for a not-yet-completed item.
             if (request.IsSaga is { } isSaga && isSaga != item.IsSaga)
@@ -213,6 +231,8 @@ namespace Doodoo.Modules.Todos.Services
                 var parent = await GetSagaParentOrThrowAsync(userId, newParentId);
                 item.ParentId = parent.Id;
                 item.ItemCategory = parent.ItemCategory;
+                item.Order = await GetNextOrderAsync(userId, item.ParentId, item.ItemCategory);
+                scopeChanged = true;
             }
 
             item.Title = request.Title ?? item.Title;
@@ -228,11 +248,19 @@ namespace Doodoo.Modules.Todos.Services
                     throw new InvalidOperationException("A child's category is inherited from its saga and cannot be set directly.");
 
                 item.ItemCategory = category;
+                item.Order = await GetNextOrderAsync(userId, null, item.ItemCategory, excludeItemId: item.Id);
+                scopeChanged = true;
                 if (item.IsSaga)
                     await CascadeCategoryAsync(userId, item);
             }
 
             await context.SaveChangesAsync();
+
+            if (scopeChanged)
+            {
+                await NormalizeScopeAsync(userId, originalParentId, originalCategory);
+                await NormalizeScopeAsync(userId, item.ParentId, item.ItemCategory);
+            }
 
             if (item.ParentId is { } pid)
                 await ReevaluateSagaAsync(userId, pid, clawback: true);
@@ -307,17 +335,153 @@ namespace Doodoo.Modules.Todos.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
+        public async Task<bool> ReorderItemsAsync(Guid userId, ReorderTodoItemsRequest request)
         {
-            var item = await context.TodoItems
-                .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == userId && i.DeletedTimestamp == null);
+            if (request.OrderedIds.Count != request.OrderedIds.Distinct().Count())
+                return false;
 
-            if (item == null) return false;
+            Guid? parentId = null;
+            ItemCategory category;
 
-            item.Order = newOrder;
+            if (request.ParentId is { } requestedParentId)
+            {
+                var parent = await context.TodoItems
+                    .FirstOrDefaultAsync(t => t.Id == requestedParentId
+                        && t.OwnerId == userId
+                        && t.DeletedTimestamp == null);
+
+                if (parent is not { IsSaga: true })
+                    return false;
+
+                parentId = parent.Id;
+                category = parent.ItemCategory;
+            }
+            else
+            {
+                if (request.ItemCategory is not { } requestedCategory)
+                    return false;
+
+                category = requestedCategory;
+            }
+
+            var siblings = await GetScopeItemsAsync(userId, parentId, category);
+            var siblingIds = siblings.Select(i => i.Id).OrderBy(id => id).ToArray();
+            var orderedIds = request.OrderedIds.OrderBy(id => id).ToArray();
+
+            if (!siblingIds.SequenceEqual(orderedIds))
+                return false;
+
+            var orderById = request.OrderedIds
+                .Select((id, index) => new { id, index })
+                .ToDictionary(x => x.id, x => x.index);
+
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            foreach (var sibling in siblings)
+                sibling.Order = -1 - orderById[sibling.Id];
+
             await context.SaveChangesAsync();
 
+            foreach (var sibling in siblings)
+                sibling.Order = orderById[sibling.Id];
+
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
             return true;
+        }
+
+        private async Task<List<TodoItem>> GetScopeItemsAsync(Guid userId, Guid? parentId, ItemCategory category)
+        {
+            var query = context.TodoItems
+                .Where(t => t.OwnerId == userId && t.DeletedTimestamp == null);
+
+            query = parentId is { } pid
+                ? query.Where(t => t.ParentId == pid)
+                : query.Where(t => t.ParentId == null && t.ItemCategory == category);
+
+            return await query
+                .OrderBy(t => t.Order)
+                .ThenBy(t => t.Id)
+                .ToListAsync();
+        }
+
+        private async Task<int> GetNextOrderAsync(
+            Guid userId,
+            Guid? parentId,
+            ItemCategory category,
+            Guid? excludeItemId = null)
+        {
+            var items = await GetScopeItemsAsync(userId, parentId, category);
+
+            if (excludeItemId is { } excludedId)
+                items = items.Where(i => i.Id != excludedId).ToList();
+
+            return items.Count;
+        }
+
+        private async Task NormalizeScopeAsync(Guid userId, Guid? parentId, ItemCategory category)
+        {
+            var items = await GetScopeItemsAsync(userId, parentId, category);
+            var changedItems = items
+                .Select((item, index) => new { item, index })
+                .Where(x => x.item.Order != x.index)
+                .ToList();
+
+            if (changedItems.Count == 0)
+                return;
+
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            foreach (var entry in changedItems)
+                entry.item.Order = -1 - entry.index;
+
+            await context.SaveChangesAsync();
+
+            foreach (var entry in changedItems)
+                entry.item.Order = entry.index;
+
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        private async Task<bool> IsNextCompletableLeafAsync(Guid userId, TodoItem item)
+        {
+            if (await HasEarlierIncompleteSiblingAsync(userId, item.ParentId, item.ItemCategory, item.Id, item.Order))
+                return false;
+
+            var node = await LoadParentAsync(userId, item);
+
+            while (node is not null)
+            {
+                if (await HasEarlierIncompleteSiblingAsync(userId, node.ParentId, node.ItemCategory, node.Id, node.Order))
+                    return false;
+
+                node = await LoadParentAsync(userId, node);
+            }
+
+            return true;
+        }
+
+        private async Task<bool> HasEarlierIncompleteSiblingAsync(
+            Guid userId,
+            Guid? parentId,
+            ItemCategory category,
+            Guid itemId,
+            int order)
+        {
+            var query = context.TodoItems
+                .Where(t => t.OwnerId == userId
+                    && t.DeletedTimestamp == null
+                    && t.Id != itemId
+                    && t.Order < order
+                    && t.CompletedTimestamp == null);
+
+            query = parentId is { } pid
+                ? query.Where(t => t.ParentId == pid)
+                : query.Where(t => t.ParentId == null && t.ItemCategory == category);
+
+            return await query.AnyAsync();
         }
 
         // ---------------- Saga helpers ----------------
