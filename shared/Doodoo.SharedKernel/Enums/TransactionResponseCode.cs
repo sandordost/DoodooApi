@@ -13,5 +13,6 @@ namespace DoodooApi.Models.Enums
         Reverted = 8,
         InsufficientFunds = 9,
         SagaNotDirectlyCompletable = 10,
+        TodoOutOfOrder = 11,
     }
 }

@@ -25,7 +25,7 @@ namespace DoodooApi.Controllers
                 return NotFound();
             }
 
-            return Ok(items.OrderBy(item => item.Order).ToArray());
+            return Ok(items.ToArray());
         }
 
         [HttpGet("{id}")]
@@ -132,12 +132,31 @@ namespace DoodooApi.Controllers
             return Ok(transactionResponse);
         }
 
+        [HttpPut("Order")]
+        public async Task<ActionResult> ReorderItems(ReorderTodoItemsRequest request)
+        {
+            var userId = userService.GetCurrentUserIdOrThrow();
+
+            var success = await todoItemService.ReorderItemsAsync(userId, request);
+            if (!success)
+            {
+                return BadRequest(
+                    new { Message = "Failed to reorder items. Please ensure all ids exist and belong to the same ordering scope." }
+                );
+            }
+
+            return NoContent();
+        }
+
+        [Obsolete("Use PUT /api/Todos/Order instead.")]
         [HttpPut("{id}/Order/{order}")]
         public async Task<ActionResult> UpdateOrder(Guid id, int order)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
 
+#pragma warning disable CS0618
             var success = await todoItemService.SetItemOrder(id, userId, order);
+#pragma warning restore CS0618
             if (!success)
             {
                 return BadRequest(
