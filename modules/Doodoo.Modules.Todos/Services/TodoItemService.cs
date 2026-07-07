@@ -466,6 +466,9 @@ namespace Doodoo.Modules.Todos.Services
 
         private async Task<bool> IsNextCompletableLeafAsync(Guid userId, TodoItem item)
         {
+            if (item.ParentId == null)
+                return true;
+
             // Load all active items for this user in one round-trip instead of making O(depth)
             // separate queries for each ancestor level.
             var allItems = await context.TodoItems
@@ -473,20 +476,18 @@ namespace Doodoo.Modules.Todos.Services
                 .ToDictionaryAsync(t => t.Id);
 
             var node = item;
-            while (true)
+            while (node.ParentId is { } parentId)
             {
                 var hasBlockingSibling = allItems.Values.Any(t =>
                     t.Id != node.Id &&
                     t.CompletedTimestamp == null &&
                     t.Order < node.Order &&
-                    (node.ParentId is { } pid
-                        ? t.ParentId == pid
-                        : t.ParentId == null && t.ItemCategory == node.ItemCategory));
+                    t.ParentId == parentId);
 
                 if (hasBlockingSibling)
                     return false;
 
-                if (node.ParentId is not { } parentId || !allItems.TryGetValue(parentId, out var parent))
+                if (!allItems.TryGetValue(parentId, out var parent))
                     break;
 
                 node = parent;
