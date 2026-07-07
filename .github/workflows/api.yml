@@ -1,10 +1,11 @@
 name: Api - Test, Build and Push
 
 on:
+  # CI (build + smoke-test) runs on pull requests. Push only triggers on main, which
+  # additionally deploys. Feature-branch pushes do not run the pipeline; open a PR instead.
   push:
-    branches: ["main", "wolverine-update"]
+    branches: ["main"]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -42,7 +43,7 @@ jobs:
           repo="${REGISTRY}/${IMAGE_NAME,,}"          # GHCR requires lowercase
           sha="${GITHUB_SHA::12}"
           deploy=false
-          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$GITHUB_REF" = "refs/heads/wolverine-update" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             deploy=true
           fi
 
@@ -141,7 +142,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: smoke-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/wolverine-update'
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
