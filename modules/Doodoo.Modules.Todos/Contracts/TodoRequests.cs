@@ -1,7 +1,7 @@
 using DoodooApi.Models.Enums;
 using DoodooApi.Models.Enums.Flags;
 
-namespace DoodooApi.Models.Requests.TodoItems
+namespace Doodoo.Modules.Todos.Contracts
 {
     public class CreateTodoItemRequest
     {

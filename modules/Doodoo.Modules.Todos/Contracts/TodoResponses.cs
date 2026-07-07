@@ -1,6 +1,6 @@
 using DoodooApi.Models.Enums;
 
-namespace DoodooApi.Models.Responses.Todos
+namespace Doodoo.Modules.Todos.Contracts
 {
     public class DailyCheckResponse
     {

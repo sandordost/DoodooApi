@@ -1,6 +1,6 @@
 using DoodooApi.Models.Enums.Flags;
 
-namespace DoodooApi.Helpers
+namespace Doodoo.Modules.Todos.Helpers
 {
     public static class ActiveDaysHelper
     {

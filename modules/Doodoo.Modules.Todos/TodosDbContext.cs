@@ -1,4 +1,4 @@
-using DoodooApi.Models.Main.TodoItems;
+using Doodoo.Modules.Todos.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Doodoo.Modules.Todos
