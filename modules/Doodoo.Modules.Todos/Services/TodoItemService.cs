@@ -466,6 +466,9 @@ namespace Doodoo.Modules.Todos.Services
             // Single bulk query: does any node in the chain have an earlier incomplete sibling?
             // Each chain node contributes one sub-query; they are combined with UNION ALL and checked
             // with a single EXISTS, reducing round-trips from O(2×depth) to O(depth)+1.
+            var baseQuery = context.TodoItems
+                .Where(t => t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null);
+
             IQueryable<TodoItem>? combined = null;
             foreach (var node in chain)
             {
@@ -474,42 +477,17 @@ namespace Doodoo.Modules.Todos.Services
                 IQueryable<TodoItem> q;
                 if (node.ParentId is { } parentId)
                 {
-                    q = context.TodoItems.Where(t =>
-                        t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null &&
-                        t.Id != nodeId && t.ParentId == parentId && t.Order < nodeOrder);
+                    q = baseQuery.Where(t => t.Id != nodeId && t.ParentId == parentId && t.Order < nodeOrder);
                 }
                 else
                 {
                     var cat = node.ItemCategory;
-                    q = context.TodoItems.Where(t =>
-                        t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null &&
-                        t.Id != nodeId && t.ParentId == null && t.ItemCategory == cat && t.Order < nodeOrder);
+                    q = baseQuery.Where(t => t.Id != nodeId && t.ParentId == null && t.ItemCategory == cat && t.Order < nodeOrder);
                 }
                 combined = combined is null ? q : combined.Concat(q);
             }
 
             return combined is null || !await combined.AnyAsync();
-        }
-
-        private async Task<bool> HasEarlierIncompleteSiblingAsync(
-            Guid userId,
-            Guid? parentId,
-            ItemCategory category,
-            Guid itemId,
-            int order)
-        {
-            var query = context.TodoItems
-                .Where(t => t.OwnerId == userId
-                    && t.DeletedTimestamp == null
-                    && t.Id != itemId
-                    && t.Order < order
-                    && t.CompletedTimestamp == null);
-
-            query = parentId is { } pid
-                ? query.Where(t => t.ParentId == pid)
-                : query.Where(t => t.ParentId == null && t.ItemCategory == category);
-
-            return await query.AnyAsync();
         }
 
         // ---------------- Saga helpers ----------------
