@@ -2,7 +2,6 @@
 using DoodooApi.Models.Main.TodoItems;
 using DoodooApi.Models.Requests.TodoItems;
 using DoodooApi.Models.Responses.Todos;
-using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -71,7 +70,7 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("{id}/Complete")]
-        public async Task<ActionResult<TransactionProcessResponse>> CompleteTodoItem(Guid id)
+        public async Task<ActionResult<TodoActionResult>> CompleteTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var response = await todoItemService.CompleteItemAsync(id, userId);
@@ -109,7 +108,7 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("{id}/UndoCompletion")]
-        public async Task<ActionResult<TransactionProcessResponse>> UndoCompleteTodoItem(Guid id)
+        public async Task<ActionResult<TodoActionResult>> UndoCompleteTodoItem(Guid id)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var transactionResponse = await todoItemService.UndoCompletionAsync(id, userId);

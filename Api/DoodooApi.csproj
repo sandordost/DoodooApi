@@ -11,23 +11,35 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <PackageReference Include="WolverineFx" Version="6.16.0" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.16.0" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.16.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\shared\Doodoo.SharedKernel\Doodoo.SharedKernel.csproj" />
+    <ProjectReference Include="..\shared\Doodoo.Messaging.Contracts\Doodoo.Messaging.Contracts.csproj" />
+    <ProjectReference Include="..\aspire\Doodoo.ServiceDefaults\Doodoo.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\modules\Doodoo.Modules.Currency\Doodoo.Modules.Currency.csproj" />
+    <ProjectReference Include="..\modules\Doodoo.Modules.Rewards\Doodoo.Modules.Rewards.csproj" />
+    <ProjectReference Include="..\modules\Doodoo.Modules.Todos\Doodoo.Modules.Todos.csproj" />
+    <ProjectReference Include="..\modules\Doodoo.Modules.Users\Doodoo.Modules.Users.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,5 @@
 ﻿using DoodooApi.Models.Requests.Rewards;
 using DoodooApi.Models.Responses.Rewards;
-using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Models.Rewards;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -145,7 +144,7 @@ namespace DoodooApi.Controllers
         }
 
         [HttpPost("claims/{rewardClaimId:int}/undo")]
-        public async Task<ActionResult<TransactionProcessResponse>> UndoClaim(int rewardClaimId)
+        public async Task<ActionResult<RewardTransactionResult>> UndoClaim(int rewardClaimId)
         {
             var userId = userService.GetCurrentUserIdOrThrow();
             var result = await rewardService.UndoRewardClaim(rewardClaimId, userId);

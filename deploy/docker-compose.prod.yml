@@ -1,0 +1,48 @@
+# Production/staging compose for the server (e.g. /opt/doodoo/docker-compose.yml).
+# Unlike the repo-root docker-compose.yml (which builds from source for local/CI),
+# this pulls the prebuilt images from GHCR that the CI build-and-push job publishes.
+#
+# The deploy job runs: docker compose pull -> up -d db -> run --rm migrator -> up -d.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: doodoo
+      POSTGRES_PASSWORD: doodoo
+      POSTGRES_DB: doodoodb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doodoo -d doodoodb"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  migrator:
+    image: ghcr.io/sandordost/doodooapi:migrator
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Db: Host=db;Port=5432;Database=doodoodb;Username=doodoo;Password=doodoo
+    restart: "no"
+
+  doodooapi:
+    image: ghcr.io/sandordost/doodooapi:latest
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      # Development keeps /health + /alive mapped and disables the HTTPS redirect,
+      # which is convenient for a directly-reachable staging box. Switch to Production
+      # once it sits behind a TLS-terminating reverse proxy.
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Db: Host=db;Port=5432;Database=doodoodb;Username=doodoo;Password=doodoo
+    ports:
+      - "5001:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
