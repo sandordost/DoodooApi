@@ -68,7 +68,12 @@ namespace Doodoo.Modules.Todos.Services
 
             // A child completion may auto-complete ancestor sagas; the root saga pays the aggregate.
             if (!isRoot)
-                grantedRootId = await PropagateCompletionUpAsync(userId, item, completedAt);
+            {
+                var (failure, grantedRoot) = await PropagateCompletionUpAsync(userId, item, completedAt);
+                if (failure is { } failureCode)
+                    return new() { ResponseCode = failureCode }; // not saved: no partial completion, no payout
+                grantedRootId = grantedRoot;
+            }
 
             try
             {
@@ -217,8 +222,11 @@ namespace Doodoo.Modules.Todos.Services
 
             // Category can only be set on a root item (children inherit their tree's cadence).
             // Changing a root saga's category cascades to the whole subtree.
-            if (request.ItemCategory is { } category && item.ParentId == null && category != item.ItemCategory)
+            if (request.ItemCategory is { } category && category != item.ItemCategory)
             {
+                if (item.ParentId != null)
+                    throw new InvalidOperationException("A child's category is inherited from its saga and cannot be set directly.");
+
                 item.ItemCategory = category;
                 if (item.IsSaga)
                     await CascadeCategoryAsync(userId, item);
@@ -314,7 +322,11 @@ namespace Doodoo.Modules.Todos.Services
 
         // ---------------- Saga helpers ----------------
 
-        private async Task<Guid?> PropagateCompletionUpAsync(Guid userId, TodoItem child, DateTime completedAt)
+        // Walks up from a just-completed child, auto-completing ancestor sagas. When the root saga
+        // completes it pays the aggregate. Returns a failure code if the payout was rejected (so the
+        // caller aborts without persisting), otherwise the granted root id (for save-failure compensation).
+        private async Task<(TransactionResponseCode? Failure, Guid? GrantedRootId)> PropagateCompletionUpAsync(
+            Guid userId, TodoItem child, DateTime completedAt)
         {
             var node = await LoadParentAsync(userId, child);
             while (node is { IsSaga: true })
@@ -327,15 +339,22 @@ namespace Doodoo.Modules.Todos.Services
                 if (node.ParentId == null)
                 {
                     var leaves = await GatherLeafRewardsAsync(userId, node);
-                    await bus.InvokeAsync<ItemCompletionRewardResult>(
+                    var grant = await bus.InvokeAsync<ItemCompletionRewardResult>(
                         new GrantSagaCompletionReward(userId, node.Id, leaves, completedAt));
-                    return node.Id;
+
+                    if (grant.ResponseCode != TransactionResponseCode.Created)
+                    {
+                        node.CompletedTimestamp = null; // don't complete the saga without a payout
+                        return (grant.ResponseCode, null);
+                    }
+
+                    return (null, node.Id);
                 }
 
                 node = await LoadParentAsync(userId, node);
             }
 
-            return null;
+            return (null, null);
         }
 
         private async Task PropagateRevertUpAsync(Guid userId, TodoItem child)
@@ -376,8 +395,15 @@ namespace Doodoo.Modules.Todos.Services
                     if (node.ParentId == null)
                     {
                         var leaves = await GatherLeafRewardsAsync(userId, node);
-                        await bus.InvokeAsync<ItemCompletionRewardResult>(
+                        var grant = await bus.InvokeAsync<ItemCompletionRewardResult>(
                             new GrantSagaCompletionReward(userId, node.Id, leaves, now));
+
+                        if (grant.ResponseCode != TransactionResponseCode.Created)
+                        {
+                            // Don't persist a completed saga without a ledger entry.
+                            node.CompletedTimestamp = null;
+                            break;
+                        }
                     }
                 }
                 else
