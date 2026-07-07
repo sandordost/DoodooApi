@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using DoodooApi.Models.Enums;
 using DoodooApi.Models.Enums.Flags;
 
@@ -30,7 +31,10 @@ namespace Doodoo.Modules.Todos.Entities
         // sagas) reference their parent. A whole saga tree shares one ItemCategory.
         public bool IsSaga { get; set; } = false;
         public Guid? ParentId { get; set; }
-        public TodoItem? Parent { get; set; }
-        public List<TodoItem> Children { get; set; } = [];
+
+        // Navigation only (for EF/tree traversal). Not serialized: the API returns a flat list and
+        // the frontend rebuilds the tree from ParentId. Serializing these would create cycles.
+        [JsonIgnore] public TodoItem? Parent { get; set; }
+        [JsonIgnore] public List<TodoItem> Children { get; set; } = [];
     }
 }
