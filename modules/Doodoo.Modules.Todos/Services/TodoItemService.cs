@@ -452,20 +452,43 @@ namespace Doodoo.Modules.Todos.Services
 
         private async Task<bool> IsNextCompletableLeafAsync(Guid userId, TodoItem item)
         {
-            if (await HasEarlierIncompleteSiblingAsync(userId, item.ParentId, item.ItemCategory, item.Id, item.Order))
-                return false;
-
-            var node = await LoadParentAsync(userId, item);
-
-            while (node is not null)
+            // Preload the full ancestor chain in one pass (item → parent → grandparent → …).
+            var chain = new List<TodoItem> { item };
+            var cur = item;
+            while (cur.ParentId is { } pid)
             {
-                if (await HasEarlierIncompleteSiblingAsync(userId, node.ParentId, node.ItemCategory, node.Id, node.Order))
-                    return false;
-
-                node = await LoadParentAsync(userId, node);
+                cur = await context.TodoItems
+                    .FirstOrDefaultAsync(t => t.Id == pid && t.OwnerId == userId && t.DeletedTimestamp == null);
+                if (cur is null) break;
+                chain.Add(cur);
             }
 
-            return true;
+            // Single bulk query: does any node in the chain have an earlier incomplete sibling?
+            // Each chain node contributes one sub-query; they are combined with UNION ALL and checked
+            // with a single EXISTS, reducing round-trips from O(2×depth) to O(depth)+1.
+            IQueryable<TodoItem>? combined = null;
+            foreach (var node in chain)
+            {
+                var nodeId = node.Id;
+                var nodeOrder = node.Order;
+                IQueryable<TodoItem> q;
+                if (node.ParentId is { } parentId)
+                {
+                    q = context.TodoItems.Where(t =>
+                        t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null &&
+                        t.Id != nodeId && t.ParentId == parentId && t.Order < nodeOrder);
+                }
+                else
+                {
+                    var cat = node.ItemCategory;
+                    q = context.TodoItems.Where(t =>
+                        t.OwnerId == userId && t.DeletedTimestamp == null && t.CompletedTimestamp == null &&
+                        t.Id != nodeId && t.ParentId == null && t.ItemCategory == cat && t.Order < nodeOrder);
+                }
+                combined = combined is null ? q : combined.Concat(q);
+            }
+
+            return combined is null || !await combined.AnyAsync();
         }
 
         private async Task<bool> HasEarlierIncompleteSiblingAsync(
