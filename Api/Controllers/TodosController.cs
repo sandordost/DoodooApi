@@ -1,7 +1,7 @@
-﻿using DoodooApi.Models.Enums;
-using DoodooApi.Models.Main.TodoItems;
-using DoodooApi.Models.Requests.TodoItems;
-using DoodooApi.Models.Responses.Todos;
+﻿using Doodoo.Modules.Todos.Contracts;
+using Doodoo.Modules.Todos.Entities;
+using Doodoo.Modules.Todos.Services;
+using DoodooApi.Models.Enums;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

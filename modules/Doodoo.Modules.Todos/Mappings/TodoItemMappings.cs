@@ -1,7 +1,7 @@
-using DoodooApi.Models.Main.TodoItems;
-using DoodooApi.Models.Requests.TodoItems;
+using Doodoo.Modules.Todos.Contracts;
+using Doodoo.Modules.Todos.Entities;
 
-namespace DoodooApi.Models.Mappings
+namespace Doodoo.Modules.Todos.Mappings
 {
     public static class TodoItemMappings
     {

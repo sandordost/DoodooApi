@@ -1,7 +1,7 @@
 using DoodooApi.Models.Enums;
 using DoodooApi.Models.Enums.Flags;
 
-namespace DoodooApi.Models.Main.TodoItems
+namespace Doodoo.Modules.Todos.Entities
 {
     public class TodoItem
     {

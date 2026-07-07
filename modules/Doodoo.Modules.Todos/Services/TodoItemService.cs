@@ -1,15 +1,13 @@
 using Doodoo.Messaging.Contracts;
-using Doodoo.Modules.Todos;
+using Doodoo.Modules.Todos.Contracts;
+using Doodoo.Modules.Todos.Entities;
+using Doodoo.Modules.Todos.Mappings;
 using DoodooApi.Models.Enums;
-using DoodooApi.Models.Main.TodoItems;
-using DoodooApi.Models.Mappings;
-using DoodooApi.Models.Requests.TodoItems;
-using DoodooApi.Models.Responses.Todos;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
-using static DoodooApi.Helpers.ActiveDaysHelper;
+using static Doodoo.Modules.Todos.Helpers.ActiveDaysHelper;
 
-namespace DoodooApi.Services
+namespace Doodoo.Modules.Todos.Services
 {
     public class TodoItemService(TodosDbContext context, IMessageBus bus)
     {
@@ -202,6 +200,7 @@ namespace DoodooApi.Services
         public async Task ResetWeeklyItemsAsync(Guid userId)
         {
             var today = DateTime.UtcNow.Date;
+            var currentWeekStart = StartOfWeek(today);
 
             var weeklyItems = await context.TodoItems
                 .Where(i => i.OwnerId == userId
@@ -212,6 +211,14 @@ namespace DoodooApi.Services
             foreach (var item in weeklyItems)
             {
                 ProcessWeeklyReset(item, today);
+
+                // Clear a completion that belongs to a previous week so the item can be checked
+                // off again this week. A completion made in the current week is preserved.
+                // LastCompletedTimestamp is kept for streak calculations.
+                if (item.CompletedTimestamp is { } completed && completed.Date < currentWeekStart)
+                {
+                    item.CompletedTimestamp = null;
+                }
             }
 
             await context.SaveChangesAsync();
@@ -230,7 +237,8 @@ namespace DoodooApi.Services
             }
         }
 
-        private static void ProcessWeeklyReset(TodoItem item, DateTime today)
+        /// <returns><c>true</c> when a new week rolled over and the item was processed.</returns>
+        private static bool ProcessWeeklyReset(TodoItem item, DateTime today)
         {
             var currentWeekStart = StartOfWeek(today);
             var previousWeekStart = currentWeekStart.AddDays(-7);
@@ -240,7 +248,7 @@ namespace DoodooApi.Services
 
             if (!shouldCheckWeekly)
             {
-                return;
+                return false;
             }
 
             var lastCompletedDate = item.LastCompletedTimestamp?.Date;
@@ -255,6 +263,7 @@ namespace DoodooApi.Services
                 : 0;
 
             item.LastWeeklyCheck = today;
+            return true;
         }
 
         public async Task<bool> SetItemOrder(Guid itemId, Guid userId, int newOrder)
