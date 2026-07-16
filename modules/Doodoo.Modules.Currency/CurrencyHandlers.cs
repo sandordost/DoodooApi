@@ -1,7 +1,8 @@
 using Doodoo.Messaging.Contracts;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.CurrencyAccounts;
 using DoodooApi.Models.Requests.Transactions;
+using DoodooApi.Models.Responses.Transactions;
 using DoodooApi.Services;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
@@ -183,6 +184,60 @@ namespace Doodoo.Modules.Currency
         {
             var code = await transactionService.UndoTransactionAsync(message.TransactionId);
             return new RefundResult(code);
+        }
+
+        // Inventory -> Currency (request/response). Credit currency when a consumable is used
+        // (e.g. bag of coins). Idempotent per Inventory use id.
+        public static async Task<GrantInventoryCurrencyResult> Handle(
+            GrantInventoryCurrency message,
+            CurrencyDbContext db,
+            TransactionService transactionService)
+        {
+            var account = await db.CurrencyAccounts
+                .FirstOrDefaultAsync(ca => ca.OwnerId == message.UserId);
+
+            if (account == null)
+                return new GrantInventoryCurrencyResult(TransactionResponseCode.CurrencyAccountNotFound, null, 0, 0);
+
+            var existing = await transactionService.GetTransactionBySourceAsync(
+                TransactionSourceType.InventoryUse, message.UseId);
+
+            if (existing != null)
+                return new GrantInventoryCurrencyResult(
+                    TransactionResponseCode.Created, existing.Id, account.Gold, account.Sapphires);
+
+            TransactionProcessResponse response;
+            try
+            {
+                response = await transactionService.MakeTransactionAsync(new CreateTransactionRequest
+                {
+                    SourceType = TransactionSourceType.InventoryUse,
+                    SourceIdGuid = message.UseId,
+                    CurrencyAccountId = account.Id,
+                    TransactionRecords = [.. message.Amounts.Select(a => new TransactionRecordRequest
+                    {
+                        CurrencyType = a.CurrencyType,
+                        Value = a.Value
+                    })]
+                });
+            }
+            catch (DbUpdateException)
+            {
+                existing = await transactionService.GetTransactionBySourceAsync(
+                    TransactionSourceType.InventoryUse, message.UseId);
+
+                if (existing == null)
+                    throw;
+
+                await db.Entry(account).ReloadAsync();
+                return new GrantInventoryCurrencyResult(
+                    TransactionResponseCode.Created, existing.Id, account.Gold, account.Sapphires);
+            }
+
+            // `account` is the same change-tracked instance the transaction service mutated,
+            // so it already reflects the new balance after SaveChanges.
+            return new GrantInventoryCurrencyResult(
+                response.ResponseCode, response.TransactionId, account.Gold, account.Sapphires);
         }
     }
 }

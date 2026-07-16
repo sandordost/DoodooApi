@@ -1,21 +1,22 @@
-﻿using DoodooApi.Models.Requests.Rewards;
+using Doodoo.SharedKernel.Abstractions;
+using DoodooApi.Models.Requests.Rewards;
 using DoodooApi.Models.Responses.Rewards;
 using DoodooApi.Models.Rewards;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DoodooApi.Controllers
+namespace Doodoo.Modules.Rewards.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
     [ApiController]
-    public class RewardsController(RewardService rewardService, UserService userService) : ControllerBase
+    public class RewardsController(RewardService rewardService, ICurrentUser currentUser) : ControllerBase
     {
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RewardResponse>>> GetRewards()
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var rewards = await rewardService.GetRewards(userId);
 
             var response = rewards.Select(reward =>
@@ -44,7 +45,7 @@ namespace DoodooApi.Controllers
         [HttpDelete("{rewardId:int}")]
         public async Task<ActionResult> DeleteReward(int rewardId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var success = await rewardService.DeleteReward(rewardId, userId);
             if (!success)
             {
@@ -56,7 +57,7 @@ namespace DoodooApi.Controllers
         [HttpPost]
         public async Task<ActionResult<RewardResponse>> CreateReward(CreateRewardRequest request)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
 
             // Forceer ownership op basis van ingelogde user
             request.OwnerId = userId;
@@ -90,7 +91,7 @@ namespace DoodooApi.Controllers
         [HttpPatch("{rewardId:int}")]
         public async Task<ActionResult<RewardResponse>> UpdateReward(int rewardId, UpdateRewardRequest request)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var updatedReward = await rewardService.UpdateReward(request, rewardId, userId);
             if (updatedReward == null)
             {
@@ -117,7 +118,7 @@ namespace DoodooApi.Controllers
         [HttpGet("{rewardId:int}/claims")]
         public async Task<ActionResult<IEnumerable<RewardClaimResponse>>> GetRewardClaims(int rewardId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var claims = await rewardService.GetRewardClaimsAsync(rewardId);
 
             var response = claims.Select(claim =>
@@ -137,7 +138,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{rewardId:int}/claims")]
         public async Task<ActionResult<ClaimRewardResponse>> ClaimReward(int rewardId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var result = await rewardService.ClaimReward(rewardId, userId);
 
             return result;
@@ -146,7 +147,7 @@ namespace DoodooApi.Controllers
         [HttpPost("claims/{rewardClaimId:int}/undo")]
         public async Task<ActionResult<RewardTransactionResult>> UndoClaim(int rewardClaimId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var result = await rewardService.UndoRewardClaim(rewardClaimId, userId);
 
             return result;

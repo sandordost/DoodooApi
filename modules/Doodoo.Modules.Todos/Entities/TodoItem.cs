@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using DoodooApi.Models.Enums;
-using DoodooApi.Models.Enums.Flags;
+using Doodoo.SharedKernel.Enums;
+using Doodoo.SharedKernel.Enums.Flags;
 
 namespace Doodoo.Modules.Todos.Entities
 {

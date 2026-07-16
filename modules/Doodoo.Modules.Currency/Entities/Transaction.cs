@@ -1,4 +1,4 @@
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.CurrencyAccounts;
 
 namespace DoodooApi.Models.Main.Transactions
@@ -15,12 +15,4 @@ namespace DoodooApi.Models.Main.Transactions
         public List<TransactionRecord> TransactionRecords { get; set; } = [];
     }
 
-    public class TransactionRecord
-    {
-        public int Id { get; set; }
-        public Guid TransactionId { get; set; }
-        public Transaction? Transaction { get; set; }
-        public required CurrencyType CurrencyType { get; set; }
-        public decimal Value { get; set; }
-    }
 }

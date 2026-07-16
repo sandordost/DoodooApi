@@ -4,9 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Doodoo.Modules.Todos
 {
-    /// <summary>Marker type so the host can reference this assembly for Wolverine discovery.</summary>
-    public sealed class Anchor;
-
     public static class TodosModuleExtensions
     {
         public static IServiceCollection AddTodosModule(this IServiceCollection services, string connectionString)

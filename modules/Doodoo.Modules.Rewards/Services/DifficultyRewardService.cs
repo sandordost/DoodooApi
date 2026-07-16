@@ -1,5 +1,5 @@
 using Doodoo.Modules.Rewards;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace DoodooApi.Services

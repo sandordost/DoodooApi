@@ -1,23 +1,26 @@
-﻿using Doodoo.Modules.Todos.Contracts;
+using Doodoo.Modules.Todos.Contracts;
 using Doodoo.Modules.Todos.Entities;
 using Doodoo.Modules.Todos.Services;
-using DoodooApi.Models.Enums;
-using DoodooApi.Services;
+using Doodoo.SharedKernel.Abstractions;
+using Doodoo.SharedKernel.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using static DoodooApi.Helpers.DateHelpers;
+using static Doodoo.Modules.Todos.Helpers.DateHelpers;
 
-namespace DoodooApi.Controllers
+namespace Doodoo.Modules.Todos.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
     [ApiController]
-    public class TodosController(TodoItemService todoItemService, UserService userService) : ControllerBase
+    public class TodosController(
+        TodoItemService todoItemService,
+        ICurrentUser currentUser,
+        IUserResetStore userResetStore) : ControllerBase
     {
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TodoItem>>> GetTodoItems()
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var items = await todoItemService.GetItemsAsync(userId);
 
             if (items == null)
@@ -31,7 +34,7 @@ namespace DoodooApi.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<TodoItem>> GetTodoItem(Guid id)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var item = await todoItemService.GetItemAsync(id, userId);
 
             if (item == null)
@@ -45,7 +48,7 @@ namespace DoodooApi.Controllers
         [HttpPatch("{id}")]
         public async Task<ActionResult<TodoItem>> UpdateTodoItem(Guid id, UpdateTodoItemRequest request)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             TodoItem? updatedItem;
             try
             {
@@ -66,7 +69,7 @@ namespace DoodooApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoItem>> CreateTodoItem(CreateTodoItemRequest request)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             TodoItem newItem;
             try
             {
@@ -83,7 +86,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{id}/Complete")]
         public async Task<ActionResult<TodoActionResult>> CompleteTodoItem(Guid id)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var response = await todoItemService.CompleteItemAsync(id, userId);
 
             if (response.ResponseCode == TransactionResponseCode.Completed)
@@ -95,7 +98,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{id}/Reset")]
         public async Task<ActionResult> ResetTodoItem(Guid id)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var response = await todoItemService.ResetItemAsync(id, userId);
 
             if (response == true)
@@ -107,7 +110,7 @@ namespace DoodooApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoItem(Guid id)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
 
             var success = await todoItemService.DeleteItemAsync(id, userId);
 
@@ -121,7 +124,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{id}/UndoCompletion")]
         public async Task<ActionResult<TodoActionResult>> UndoCompleteTodoItem(Guid id)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var transactionResponse = await todoItemService.UndoCompletionAsync(id, userId);
 
             if (transactionResponse.ResponseCode != TransactionResponseCode.Reverted)
@@ -135,7 +138,7 @@ namespace DoodooApi.Controllers
         [HttpPut("Order")]
         public async Task<ActionResult> ReorderItems(ReorderTodoItemsRequest request)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
 
             var success = await todoItemService.ReorderItemsAsync(userId, request);
             if (!success)
@@ -152,7 +155,7 @@ namespace DoodooApi.Controllers
         [HttpPut("{id}/Order/{order}")]
         public async Task<ActionResult> UpdateOrder(Guid id, int order)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
 
 #pragma warning disable CS0618
             var success = await todoItemService.SetItemOrder(id, userId, order);
@@ -170,22 +173,22 @@ namespace DoodooApi.Controllers
         [HttpPost("DailyCheck")]
         public async Task<ActionResult<DailyCheckResponse>> DailyCheck()
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
-            var user = await userService.GetCurrentUserAsync();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
+            var state = await userResetStore.GetAsync(userId);
 
-            if (user == null)
+            if (state == null)
             {
                 return Unauthorized(false);
             }
 
             var today = DateTime.UtcNow.Date;
 
-            var needsDailyReset = user.LastDailyReset == null
-                || user.LastDailyReset.Value.Date < today;
+            var needsDailyReset = state.LastDailyReset == null
+                || state.LastDailyReset.Value.Date < today;
 
             // Returns true when current week number is higher then lastWeeklyReset week number, or when lastWeeklyReset is null
-            var needsWeeklyReset = user.LastWeeklyReset == null
-                || (user.LastWeeklyReset.Value.Date < today && GetWeekOfYear(user.LastWeeklyReset.Value) < GetWeekOfYear(today));
+            var needsWeeklyReset = state.LastWeeklyReset == null
+                || (state.LastWeeklyReset.Value.Date < today && GetWeekOfYear(state.LastWeeklyReset.Value) < GetWeekOfYear(today));
 
             var response = new DailyCheckResponse
             {
@@ -196,16 +199,19 @@ namespace DoodooApi.Controllers
             if (needsDailyReset)
             {
                 await todoItemService.ResetDailyItemsAsync(userId);
-
-                user.LastDailyReset = today;
-                await userService.UpdateUserAsync(user);
             }
 
             if (needsWeeklyReset)
             {
                 await todoItemService.ResetWeeklyItemsAsync(userId);
-                user.LastWeeklyReset = today;
-                await userService.UpdateUserAsync(user);
+            }
+
+            if (needsDailyReset || needsWeeklyReset)
+            {
+                await userResetStore.SetAsync(
+                    userId,
+                    needsDailyReset ? today : state.LastDailyReset,
+                    needsWeeklyReset ? today : state.LastWeeklyReset);
             }
 
             return Ok(response);

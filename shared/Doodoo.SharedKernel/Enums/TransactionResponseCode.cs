@@ -1,4 +1,4 @@
-namespace DoodooApi.Models.Enums
+namespace Doodoo.SharedKernel.Enums
 {
     public enum TransactionResponseCode
     {

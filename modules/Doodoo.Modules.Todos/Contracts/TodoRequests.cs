@@ -1,5 +1,5 @@
-using DoodooApi.Models.Enums;
-using DoodooApi.Models.Enums.Flags;
+using Doodoo.SharedKernel.Enums;
+using Doodoo.SharedKernel.Enums.Flags;
 
 namespace Doodoo.Modules.Todos.Contracts
 {
@@ -17,21 +17,4 @@ namespace Doodoo.Modules.Todos.Contracts
         public Guid? ParentId { get; set; }
     }
 
-    public class UpdateTodoItemRequest
-    {
-        public string? Title { get; set; }
-        public string? Description { get; set; }
-        public ItemDifficulty? ItemDifficulty { get; set; }
-        public ItemCategory? ItemCategory { get; set; }
-        public ActiveDays? ActiveDays { get; set; }
-        public bool? IsSaga { get; set; }
-        public Guid? ParentId { get; set; }
-    }
-
-    public class ReorderTodoItemsRequest
-    {
-        public Guid? ParentId { get; set; }
-        public ItemCategory? ItemCategory { get; set; }
-        public required List<Guid> OrderedIds { get; set; }
-    }
 }

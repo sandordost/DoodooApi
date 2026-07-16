@@ -26,6 +26,7 @@ COPY modules/Doodoo.Modules.Users/Doodoo.Modules.Users.csproj modules/Doodoo.Mod
 COPY modules/Doodoo.Modules.Currency/Doodoo.Modules.Currency.csproj modules/Doodoo.Modules.Currency/
 COPY modules/Doodoo.Modules.Rewards/Doodoo.Modules.Rewards.csproj modules/Doodoo.Modules.Rewards/
 COPY modules/Doodoo.Modules.Todos/Doodoo.Modules.Todos.csproj modules/Doodoo.Modules.Todos/
+COPY modules/Doodoo.Modules.Inventory/Doodoo.Modules.Inventory.csproj modules/Doodoo.Modules.Inventory/
 
 RUN dotnet restore Api/DoodooApi.csproj
 RUN dotnet restore migration/Doodoo.MigrationService/Doodoo.MigrationService.csproj

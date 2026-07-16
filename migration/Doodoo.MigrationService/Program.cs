@@ -1,4 +1,5 @@
 using Doodoo.Modules.Currency;
+using Doodoo.Modules.Inventory;
 using Doodoo.Modules.Rewards;
 using Doodoo.Modules.Todos;
 using Doodoo.Modules.Users;
@@ -22,6 +23,7 @@ builder.Services.AddDbContext<UsersDbContext>(o => o.UseNpgsql(connectionString,
 builder.Services.AddDbContext<CurrencyDbContext>(o => o.UseNpgsql(connectionString, History(CurrencyDbContext.Schema)));
 builder.Services.AddDbContext<RewardsDbContext>(o => o.UseNpgsql(connectionString, History(RewardsDbContext.Schema)));
 builder.Services.AddDbContext<TodosDbContext>(o => o.UseNpgsql(connectionString, History(TodosDbContext.Schema)));
+builder.Services.AddDbContext<InventoryDbContext>(o => o.UseNpgsql(connectionString, History(InventoryDbContext.Schema)));
 
 var host = builder.Build();
 
@@ -34,6 +36,7 @@ using (var scope = host.Services.CreateScope())
     await sp.GetRequiredService<CurrencyDbContext>().Database.MigrateAsync();
     await sp.GetRequiredService<RewardsDbContext>().Database.MigrateAsync();
     await sp.GetRequiredService<TodosDbContext>().Database.MigrateAsync();
+    await sp.GetRequiredService<InventoryDbContext>().Database.MigrateAsync();
 }
 
 // Run-once: migrate and exit 0 so Aspire's WaitForCompletion gate opens.

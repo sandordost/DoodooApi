@@ -1,8 +1,9 @@
-namespace DoodooApi.Models.Enums
+namespace Doodoo.SharedKernel.Enums
 {
     public enum TransactionSourceType
     {
         ItemCompletion = 0,
         RewardClaim = 1,
+        InventoryUse = 2,
     }
 }

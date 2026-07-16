@@ -1,0 +1,86 @@
+using Doodoo.Modules.Inventory.Contracts;
+using Doodoo.Modules.Inventory.Services;
+using Doodoo.SharedKernel.Abstractions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Doodoo.Modules.Inventory.Controllers
+{
+    [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
+    public class InventoryController(
+        InventoryService inventoryService,
+        ICurrentUser currentUser) : ControllerBase
+    {
+        // Everything the frontend needs on startup, in one response.
+        [HttpGet]
+        public async Task<ActionResult<InventoryResponse>> Get()
+        {
+            var userId = currentUser.GetCurrentUserIdOrThrow();
+            var response = await inventoryService.GetInventoryAsync(userId);
+
+            // Cheap validation / vangnet for the PWA cache: ETag on the version.
+            var etag = $"\"{response.Version}\"";
+            if (Request.Headers.IfNoneMatch == etag)
+                return StatusCode(StatusCodes.Status304NotModified);
+
+            Response.Headers.ETag = etag;
+            return Ok(response);
+        }
+
+        [HttpPost("{entryId:int}/equip")]
+        public async Task<ActionResult<InventoryResponse>> Equip(int entryId)
+        {
+            var userId = currentUser.GetCurrentUserIdOrThrow();
+            var result = await inventoryService.EquipAsync(userId, entryId);
+            return MapResult(result);
+        }
+
+        [HttpPost("{entryId:int}/unequip")]
+        public async Task<ActionResult<InventoryResponse>> Unequip(int entryId)
+        {
+            var userId = currentUser.GetCurrentUserIdOrThrow();
+            var result = await inventoryService.UnequipAsync(userId, entryId);
+            return MapResult(result);
+        }
+
+        [HttpPost("{entryId:int}/use")]
+        public async Task<ActionResult<UseItemResponse>> Use(
+            int entryId,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey)
+        {
+            var userId = currentUser.GetCurrentUserIdOrThrow();
+            Guid? useId = null;
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                if (!Guid.TryParse(idempotencyKey, out var parsedUseId))
+                    return BadRequest("Idempotency-Key must be a valid GUID.");
+
+                useId = parsedUseId;
+            }
+
+            var result = await inventoryService.UseAsync(userId, entryId, useId);
+
+            return result.Code switch
+            {
+                InventoryOpCode.Success => Ok(result.Value),
+                InventoryOpCode.EntryNotFound => NotFound("Inventory entry not found."),
+                InventoryOpCode.NotAConsumable => BadRequest("This item is not a consumable."),
+                InventoryOpCode.OutOfStock => BadRequest("This item is out of stock."),
+                InventoryOpCode.CurrencyGrantFailed => StatusCode(StatusCodes.Status502BadGateway, "Currency grant failed."),
+                _ => BadRequest(result.Code.ToString())
+            };
+        }
+
+        private ActionResult<InventoryResponse> MapResult(InventoryOperationResult<InventoryResponse> result) =>
+            result.Code switch
+            {
+                InventoryOpCode.Success => Ok(result.Value),
+                InventoryOpCode.EntryNotFound => NotFound("Inventory entry not found."),
+                InventoryOpCode.NotACustomization => BadRequest("This item is not a customization."),
+                _ => BadRequest(result.Code.ToString())
+            };
+    }
+}
