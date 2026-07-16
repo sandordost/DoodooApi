@@ -14,6 +14,15 @@ namespace Doodoo.Modules.Inventory.Services
 
         public async Task<InventoryResponse> GetInventoryAsync(Guid userId)
         {
+            // Backfill for users registered before the Inventory module existed (their
+            // UserRegistered event never granted the defaults). Idempotent: only fires while
+            // the user owns nothing, so it never re-grants once they have entries.
+            var hasAny = await db.InventoryEntries.AnyAsync(e => e.OwnerId == userId);
+            if (!hasAny)
+            {
+                await GrantDefaultsAsync(userId);
+            }
+
             var entries = await db.InventoryEntries
                 .Include(e => e.Definition)
                 .Where(e => e.OwnerId == userId)
