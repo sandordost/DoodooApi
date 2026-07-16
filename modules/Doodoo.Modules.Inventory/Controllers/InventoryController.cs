@@ -47,10 +47,21 @@ namespace Doodoo.Modules.Inventory.Controllers
         }
 
         [HttpPost("{entryId:int}/use")]
-        public async Task<ActionResult<UseItemResponse>> Use(int entryId)
+        public async Task<ActionResult<UseItemResponse>> Use(
+            int entryId,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey)
         {
             var userId = currentUser.GetCurrentUserIdOrThrow();
-            var result = await inventoryService.UseAsync(userId, entryId);
+            Guid? useId = null;
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                if (!Guid.TryParse(idempotencyKey, out var parsedUseId))
+                    return BadRequest("Idempotency-Key must be a valid GUID.");
+
+                useId = parsedUseId;
+            }
+
+            var result = await inventoryService.UseAsync(userId, entryId, useId);
 
             return result.Code switch
             {

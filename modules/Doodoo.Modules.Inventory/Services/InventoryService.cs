@@ -85,7 +85,10 @@ namespace Doodoo.Modules.Inventory.Services
 
         // ---- Consumables -------------------------------------------------------------
 
-        public async Task<InventoryOperationResult<UseItemResponse>> UseAsync(Guid userId, int entryId)
+        public async Task<InventoryOperationResult<UseItemResponse>> UseAsync(
+            Guid userId,
+            int entryId,
+            Guid? requestedUseId = null)
         {
             var entry = await db.InventoryEntries
                 .Include(e => e.Definition)
@@ -101,11 +104,10 @@ namespace Doodoo.Modules.Inventory.Services
             if (entry.Quantity <= 0)
                 return InventoryOperationResult<UseItemResponse>.Fail(InventoryOpCode.OutOfStock);
 
+            var useId = requestedUseId ?? Guid.NewGuid();
             decimal? newGold = null;
             int? newSapphires = null;
 
-            // Apply the effect via the owning module BEFORE decrementing, so a failed grant
-            // leaves the consumable intact (grant-first, then persist state).
             var currencyType = def.Effect switch
             {
                 ConsumableEffect.GrantGold => (CurrencyType?)CurrencyType.Gold,
@@ -113,26 +115,46 @@ namespace Doodoo.Modules.Inventory.Services
                 _ => null
             };
 
+            var now = DateTime.UtcNow;
+            var decremented = await db.InventoryEntries
+                .Where(e => e.OwnerId == userId && e.Id == entryId && e.Quantity > 0)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(e => e.Quantity, e => e.Quantity - 1)
+                    .SetProperty(e => e.LastUsedAtUtc, now)
+                    .SetProperty(e => e.UpdatedAtUtc, now));
+
+            if (decremented == 0)
+                return InventoryOperationResult<UseItemResponse>.Fail(InventoryOpCode.OutOfStock);
+
             if (currencyType is not null && def.EffectAmount != 0)
             {
-                var result = await bus.InvokeAsync<GrantInventoryCurrencyResult>(
-                    new GrantInventoryCurrency(userId,
-                        [new CurrencyAmount(currencyType.Value, def.EffectAmount)]));
+                GrantInventoryCurrencyResult result;
+                try
+                {
+                    result = await bus.InvokeAsync<GrantInventoryCurrencyResult>(
+                        new GrantInventoryCurrency(userId, useId,
+                            [new CurrencyAmount(currencyType.Value, def.EffectAmount)]));
+                }
+                catch
+                {
+                    await RestoreQuantityAsync(userId, entryId);
+                    return InventoryOperationResult<UseItemResponse>.Fail(InventoryOpCode.CurrencyGrantFailed);
+                }
 
                 if (result.ResponseCode != TransactionResponseCode.Created)
+                {
+                    await RestoreQuantityAsync(userId, entryId);
                     return InventoryOperationResult<UseItemResponse>.Fail(InventoryOpCode.CurrencyGrantFailed);
+                }
 
                 newGold = result.NewGold;
                 newSapphires = result.NewSapphires;
             }
 
-            entry.Quantity -= 1;
-            entry.LastUsedAtUtc = DateTime.UtcNow;
-            entry.UpdatedAtUtc = DateTime.UtcNow;
-            await db.SaveChangesAsync();
+            await db.Entry(entry).ReloadAsync();
 
             return InventoryOperationResult<UseItemResponse>.Ok(new UseItemResponse(
-                entry.Id, entry.Quantity, def.Effect, def.EffectAmount, newGold, newSapphires));
+                useId, entry.Id, entry.Quantity, def.Effect, def.EffectAmount, newGold, newSapphires));
         }
 
         // ---- Granting ----------------------------------------------------------------
@@ -206,6 +228,15 @@ namespace Doodoo.Modules.Inventory.Services
                 AcquiredAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             });
+        }
+
+        private async Task RestoreQuantityAsync(Guid userId, int entryId)
+        {
+            await db.InventoryEntries
+                .Where(e => e.OwnerId == userId && e.Id == entryId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(e => e.Quantity, e => e.Quantity + 1)
+                    .SetProperty(e => e.UpdatedAtUtc, DateTime.UtcNow));
         }
 
         // ---- Admin: definitions ------------------------------------------------------
