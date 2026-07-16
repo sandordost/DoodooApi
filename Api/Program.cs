@@ -32,7 +32,10 @@ builder.Host.UseWolverine(opts =>
     opts.ServiceLocationPolicy = ServiceLocationPolicy.AllowedButWarn;
 });
 
-builder.Services.AddControllers();
+// Controllers live in the host and in the modules that own them; register each module
+// assembly as an application part so its controllers are discovered.
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(Doodoo.Modules.Inventory.Anchor).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddCors(options =>
@@ -70,6 +73,9 @@ builder.Services.AddHttpContextAccessor();
 
 // Dependency Injection
 builder.Services.AddScoped<UserService>();
+// Expose the host's current-user resolution to module controllers via the shared abstraction.
+builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.ICurrentUser>(
+    sp => sp.GetRequiredService<UserService>());
 
 var connectionString = builder.Configuration.GetConnectionString("Db");
 if (string.IsNullOrEmpty(connectionString))

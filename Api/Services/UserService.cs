@@ -1,10 +1,11 @@
-﻿using DoodooApi.Models.Main.Users;
+﻿using Doodoo.SharedKernel.Abstractions;
+using DoodooApi.Models.Main.Users;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 
 namespace DoodooApi.Services
 {
-    public class UserService(IHttpContextAccessor httpContextAccessor, UserManager<AppUser> userManager)
+    public class UserService(IHttpContextAccessor httpContextAccessor, UserManager<AppUser> userManager) : ICurrentUser
     {
         public Guid? GetCurrentUserId()
         {

@@ -1,7 +1,7 @@
 ﻿using Doodoo.Modules.Todos.Contracts;
 using Doodoo.Modules.Todos.Entities;
 using Doodoo.Modules.Todos.Services;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

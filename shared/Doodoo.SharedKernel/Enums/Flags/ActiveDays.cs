@@ -1,4 +1,4 @@
-namespace DoodooApi.Models.Enums.Flags
+namespace Doodoo.SharedKernel.Enums.Flags
 {
     [Flags]
     public enum ActiveDays

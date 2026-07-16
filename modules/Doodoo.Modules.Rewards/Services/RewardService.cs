@@ -1,6 +1,6 @@
 using Doodoo.Messaging.Contracts;
 using Doodoo.Modules.Rewards;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.Rewards;
 using DoodooApi.Models.Mappings;
 using DoodooApi.Models.Requests.Rewards;

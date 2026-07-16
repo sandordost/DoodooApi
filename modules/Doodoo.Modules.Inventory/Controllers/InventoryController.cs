@@ -1,23 +1,24 @@
 using Doodoo.Modules.Inventory.Contracts;
 using Doodoo.Modules.Inventory.Services;
-using DoodooApi.Services;
+using Doodoo.SharedKernel.Abstractions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DoodooApi.Controllers
+namespace Doodoo.Modules.Inventory.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
     [ApiController]
     public class InventoryController(
         InventoryService inventoryService,
-        UserService userService) : ControllerBase
+        ICurrentUser currentUser) : ControllerBase
     {
         // Everything the frontend needs on startup, in one response.
         [HttpGet]
         public async Task<ActionResult<InventoryResponse>> Get()
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var response = await inventoryService.GetInventoryAsync(userId);
 
             // Cheap validation / vangnet for the PWA cache: ETag on the version.
@@ -32,7 +33,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{entryId:int}/equip")]
         public async Task<ActionResult<InventoryResponse>> Equip(int entryId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var result = await inventoryService.EquipAsync(userId, entryId);
             return MapResult(result);
         }
@@ -40,7 +41,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{entryId:int}/unequip")]
         public async Task<ActionResult<InventoryResponse>> Unequip(int entryId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var result = await inventoryService.UnequipAsync(userId, entryId);
             return MapResult(result);
         }
@@ -48,7 +49,7 @@ namespace DoodooApi.Controllers
         [HttpPost("{entryId:int}/use")]
         public async Task<ActionResult<UseItemResponse>> Use(int entryId)
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var result = await inventoryService.UseAsync(userId, entryId);
 
             return result.Code switch

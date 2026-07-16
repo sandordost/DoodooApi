@@ -4,7 +4,7 @@ using Doodoo.Modules.Inventory.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DoodooApi.Controllers
+namespace Doodoo.Modules.Inventory.Controllers
 {
     [Route("api/admin/inventory")]
     [Authorize(Roles = "Admin")]

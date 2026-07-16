@@ -2,7 +2,7 @@ using Doodoo.Messaging.Contracts;
 using Doodoo.Modules.Inventory.Contracts;
 using Doodoo.Modules.Inventory.Entities;
 using Doodoo.Modules.Inventory.Enums;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
 

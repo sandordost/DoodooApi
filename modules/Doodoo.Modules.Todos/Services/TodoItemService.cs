@@ -2,7 +2,7 @@ using Doodoo.Messaging.Contracts;
 using Doodoo.Modules.Todos.Contracts;
 using Doodoo.Modules.Todos.Entities;
 using Doodoo.Modules.Todos.Mappings;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
 using static Doodoo.Modules.Todos.Helpers.ActiveDaysHelper;

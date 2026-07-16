@@ -1,4 +1,4 @@
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 
 namespace Doodoo.Modules.Todos.Contracts
 {

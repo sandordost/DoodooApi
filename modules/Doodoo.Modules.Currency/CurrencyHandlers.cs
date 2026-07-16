@@ -1,5 +1,5 @@
 using Doodoo.Messaging.Contracts;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.CurrencyAccounts;
 using DoodooApi.Models.Requests.Transactions;
 using DoodooApi.Services;

@@ -1,4 +1,4 @@
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.CurrencyAccounts;
 
 namespace DoodooApi.Models.Main.Transactions

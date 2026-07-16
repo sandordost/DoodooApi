@@ -1,5 +1,5 @@
 using Doodoo.Modules.Currency;
-using DoodooApi.Models.Enums;
+using Doodoo.SharedKernel.Enums;
 using DoodooApi.Models.Main.Transactions;
 using DoodooApi.Models.Mappings;
 using DoodooApi.Models.Requests.Transactions;
