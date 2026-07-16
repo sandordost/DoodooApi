@@ -82,6 +82,8 @@ builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.ICurrentUser>(
     sp => sp.GetRequiredService<UserService>());
 builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.IUserResetStore>(
     sp => sp.GetRequiredService<UserService>());
+builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.IUserDirectory>(
+    sp => sp.GetRequiredService<UserService>());
 
 var connectionString = builder.Configuration.GetConnectionString("Db");
 if (string.IsNullOrEmpty(connectionString))
