@@ -6,7 +6,7 @@ using System.Security.Claims;
 namespace DoodooApi.Services
 {
     public class UserService(IHttpContextAccessor httpContextAccessor, UserManager<AppUser> userManager)
-        : ICurrentUser, IUserResetStore
+        : ICurrentUser, IUserResetStore, IUserDirectory
     {
         public Guid? GetCurrentUserId()
         {
@@ -58,6 +58,15 @@ namespace DoodooApi.Services
             user.LastDailyReset = lastDailyReset;
             user.LastWeeklyReset = lastWeeklyReset;
             await userManager.UpdateAsync(user);
+        }
+
+        // IUserDirectory: lets modules resolve a user id from an email without touching AppUser.
+        public async Task<Guid?> FindUserIdByEmailAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var user = await userManager.FindByEmailAsync(email.Trim());
+            return user?.Id;
         }
     }
 }

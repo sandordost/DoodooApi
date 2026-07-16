@@ -1,6 +1,7 @@
 using Doodoo.Modules.Inventory.Contracts;
 using Doodoo.Modules.Inventory.Entities;
 using Doodoo.Modules.Inventory.Services;
+using Doodoo.SharedKernel.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +10,9 @@ namespace Doodoo.Modules.Inventory.Controllers
     [Route("api/admin/inventory")]
     [Authorize(Roles = "Admin")]
     [ApiController]
-    public class AdminInventoryController(InventoryService inventoryService) : ControllerBase
+    public class AdminInventoryController(
+        InventoryService inventoryService,
+        IUserDirectory userDirectory) : ControllerBase
     {
         [HttpGet("definitions")]
         public async Task<ActionResult<List<ItemDefinition>>> ListDefinitions()
@@ -61,11 +64,26 @@ namespace Doodoo.Modules.Inventory.Controllers
 
             InventoryOpCode code;
             if (request.All)
+            {
                 code = await inventoryService.GrantItemToAllAsync(request.DefinitionKey, request.Quantity);
+            }
             else if (request.UserId is { } userId)
+            {
                 code = await inventoryService.GrantItemAsync(userId, request.DefinitionKey, request.Quantity);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                var email = request.Email.Trim();
+                var resolvedUserId = await userDirectory.FindUserIdByEmailAsync(email);
+                if (resolvedUserId is not { } emailUserId)
+                    return NotFound($"No user found for email '{email}'.");
+
+                code = await inventoryService.GrantItemAsync(emailUserId, request.DefinitionKey, request.Quantity);
+            }
             else
-                return BadRequest("Provide a userId or set all=true.");
+            {
+                return BadRequest("Provide a userId, an email, or set all=true.");
+            }
 
             return code switch
             {
