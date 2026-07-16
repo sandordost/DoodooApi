@@ -14,19 +14,32 @@ namespace Doodoo.Modules.Inventory.Services
 
         public async Task<InventoryResponse> GetInventoryAsync(Guid userId)
         {
-            // Backfill for users registered before the Inventory module existed (their
-            // UserRegistered event never granted the defaults). Idempotent: only fires while
-            // the user owns nothing, so it never re-grants once they have entries.
-            var hasAny = await db.InventoryEntries.AnyAsync(e => e.OwnerId == userId);
-            if (!hasAny)
-            {
-                await GrantDefaultsAsync(userId);
-            }
-
             var entries = await db.InventoryEntries
                 .Include(e => e.Definition)
                 .Where(e => e.OwnerId == userId)
                 .ToListAsync();
+
+            // Backfill for users registered before the Inventory module existed (their
+            // UserRegistered event never granted the defaults). Only fires while the user owns
+            // nothing, so it never re-grants once entries exist. Best-effort: two concurrent
+            // GETs can both enter here, and the loser's insert trips the unique (OwnerId,
+            // DefinitionId) index — swallow that and reload the winner's rows instead of 500ing.
+            if (entries.Count == 0)
+            {
+                try
+                {
+                    await GrantDefaultsAsync(userId);
+                }
+                catch (DbUpdateException)
+                {
+                    db.ChangeTracker.Clear();
+                }
+
+                entries = await db.InventoryEntries
+                    .Include(e => e.Definition)
+                    .Where(e => e.OwnerId == userId)
+                    .ToListAsync();
+            }
 
             return BuildResponse(entries);
         }
