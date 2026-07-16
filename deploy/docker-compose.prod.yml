@@ -40,6 +40,9 @@ services:
       # once it sits behind a TLS-terminating reverse proxy.
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Db: Host=db;Port=5432;Database=doodoodb;Username=doodoo;Password=doodoo
+      # Grant the "Admin" role on startup to these already-registered users (comma-separated).
+      # The role is created if missing; users must re-login afterwards to get an Admin token.
+      # Admin__Emails: jouw-account@voorbeeld.nl
     ports:
       - "5001:8080"
     restart: unless-stopped
