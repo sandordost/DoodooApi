@@ -1,21 +1,22 @@
-﻿using DoodooApi.Models.Main.CurrencyAccounts;
+using Doodoo.SharedKernel.Abstractions;
+using DoodooApi.Models.Main.CurrencyAccounts;
 using DoodooApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DoodooApi.Controllers
+namespace Doodoo.Modules.Currency.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
     [ApiController]
     public class CurrencyAccountController(
         CurrencyAccountService currencyAccountService,
-        UserService userService) : ControllerBase
+        ICurrentUser currentUser) : ControllerBase
     {
         [HttpGet("balance")]
         public async Task<ActionResult<BalanceResponse>> GetBalance()
         {
-            var userId = userService.GetCurrentUserIdOrThrow();
+            var userId = currentUser.GetCurrentUserIdOrThrow();
             var balance = await currencyAccountService.GetBalance(userId);
 
             if (balance == null)

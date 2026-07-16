@@ -4,9 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Doodoo.Modules.Rewards
 {
-    /// <summary>Marker type so the host can reference this assembly for Wolverine discovery.</summary>
-    public sealed class Anchor;
-
     public static class RewardsModuleExtensions
     {
         public static IServiceCollection AddRewardsModule(this IServiceCollection services, string connectionString)

@@ -5,7 +5,8 @@ using System.Security.Claims;
 
 namespace DoodooApi.Services
 {
-    public class UserService(IHttpContextAccessor httpContextAccessor, UserManager<AppUser> userManager) : ICurrentUser
+    public class UserService(IHttpContextAccessor httpContextAccessor, UserManager<AppUser> userManager)
+        : ICurrentUser, IUserResetStore
     {
         public Guid? GetCurrentUserId()
         {
@@ -39,6 +40,24 @@ namespace DoodooApi.Services
         {
             await userManager.UpdateAsync(user);
             return true;
+        }
+
+        // IUserResetStore: exposes the AppUser daily/weekly reset markers to the Todos module
+        // through the shared abstraction, without leaking AppUser across the module boundary.
+        public async Task<UserResetState?> GetAsync(Guid userId)
+        {
+            var user = await userManager.FindByIdAsync(userId.ToString());
+            return user == null ? null : new UserResetState(user.LastDailyReset, user.LastWeeklyReset);
+        }
+
+        public async Task SetAsync(Guid userId, DateTime? lastDailyReset, DateTime? lastWeeklyReset)
+        {
+            var user = await userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return;
+
+            user.LastDailyReset = lastDailyReset;
+            user.LastWeeklyReset = lastWeeklyReset;
+            await userManager.UpdateAsync(user);
         }
     }
 }

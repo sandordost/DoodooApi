@@ -1,4 +1,4 @@
-﻿namespace DoodooApi.Helpers
+namespace Doodoo.Modules.Todos.Helpers
 {
     public static class DateHelpers
     {

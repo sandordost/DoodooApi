@@ -4,9 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Doodoo.Modules.Inventory
 {
-    /// <summary>Marker type so the host can reference this assembly for Wolverine discovery.</summary>
-    public sealed class Anchor;
-
     public static class InventoryModuleExtensions
     {
         public static IServiceCollection AddInventoryModule(this IServiceCollection services, string connectionString)

@@ -6,9 +6,9 @@ using Doodoo.Modules.Users;
 using DoodooApi.Models.Main.Users;
 using DoodooApi.Services;
 using DoodooApi.Swagger;
+using JasperFx.CodeGeneration.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
-using JasperFx.CodeGeneration.Model;
 using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,9 +32,13 @@ builder.Host.UseWolverine(opts =>
     opts.ServiceLocationPolicy = ServiceLocationPolicy.AllowedButWarn;
 });
 
-// Controllers live in the host and in the modules that own them; register each module
-// assembly as an application part so its controllers are discovered.
+// Each module owns its own API controllers; register every module assembly as an
+// application part so MVC discovers the controllers living inside them.
 builder.Services.AddControllers()
+    .AddApplicationPart(typeof(Doodoo.Modules.Currency.Anchor).Assembly)
+    .AddApplicationPart(typeof(Doodoo.Modules.Rewards.Anchor).Assembly)
+    .AddApplicationPart(typeof(Doodoo.Modules.Todos.Anchor).Assembly)
+    .AddApplicationPart(typeof(Doodoo.Modules.Users.Anchor).Assembly)
     .AddApplicationPart(typeof(Doodoo.Modules.Inventory.Anchor).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 
@@ -73,8 +77,10 @@ builder.Services.AddHttpContextAccessor();
 
 // Dependency Injection
 builder.Services.AddScoped<UserService>();
-// Expose the host's current-user resolution to module controllers via the shared abstraction.
+// Expose the host's user facade to module controllers via the shared abstractions.
 builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.ICurrentUser>(
+    sp => sp.GetRequiredService<UserService>());
+builder.Services.AddScoped<Doodoo.SharedKernel.Abstractions.IUserResetStore>(
     sp => sp.GetRequiredService<UserService>());
 
 var connectionString = builder.Configuration.GetConnectionString("Db");
@@ -113,9 +119,6 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-app.UseSwagger();
-app.UseSwaggerUI();
-
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -123,6 +126,20 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors("PublicApi");
 app.UseAuthentication();
+app.UseStaticFiles();
+
+app.UseSwagger(options =>
+{
+    options.PreSerializeFilters.Add(AdminOnlySwaggerFilter.HideAdminPathsForNonAdmins);
+});
+app.UseSwaggerUI(options =>
+{
+    // Keep the entered bearer token across a refresh. The Swagger document is filtered
+    // per request, so admin-only paths can appear after authenticating as Admin and refreshing.
+    options.ConfigObject.PersistAuthorization = true;
+    options.InjectJavascript("/swagger/admin-auth.js");
+});
+
 app.UseAuthorization();
 
 app.MapIdentityApi<AppUser>();

@@ -11,9 +11,4 @@ namespace DoodooApi.Models.Requests.Transactions
         public List<TransactionRecordRequest> TransactionRecords { get; set; } = [];
     }
 
-    public class TransactionRecordRequest
-    {
-        public required CurrencyType CurrencyType { get; set; }
-        public decimal Value { get; set; }
-    }
 }

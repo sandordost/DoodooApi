@@ -4,9 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Doodoo.Modules.Currency
 {
-    /// <summary>Marker type so the host can reference this assembly for Wolverine discovery.</summary>
-    public sealed class Anchor;
-
     public static class CurrencyModuleExtensions
     {
         public static IServiceCollection AddCurrencyModule(this IServiceCollection services, string connectionString)
