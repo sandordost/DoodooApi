@@ -27,4 +27,9 @@ namespace Doodoo.Messaging.Contracts
     // Rewards -> Currency (InvokeAsync): refund a previously claimed reward
     public record RefundRewardClaim(Guid TransactionId);
     public record RefundResult(TransactionResponseCode ResponseCode);
+
+    // Inventory -> Currency (InvokeAsync): credit currency when a consumable is used
+    // (e.g. a "bag of coins" grants gold). Append-only credit (SourceType = InventoryUse).
+    public record GrantInventoryCurrency(Guid UserId, IReadOnlyList<CurrencyAmount> Amounts);
+    public record GrantInventoryCurrencyResult(TransactionResponseCode ResponseCode, Guid? TransactionId, decimal NewGold, int NewSapphires);
 }

@@ -1,4 +1,5 @@
 using Doodoo.Modules.Currency;
+using Doodoo.Modules.Inventory;
 using Doodoo.Modules.Rewards;
 using Doodoo.Modules.Todos;
 using Doodoo.Modules.Users;
@@ -23,6 +24,7 @@ builder.Host.UseWolverine(opts =>
     opts.Discovery.IncludeAssembly(typeof(Doodoo.Modules.Rewards.Anchor).Assembly);
     opts.Discovery.IncludeAssembly(typeof(Doodoo.Modules.Todos.Anchor).Assembly);
     opts.Discovery.IncludeAssembly(typeof(Doodoo.Modules.Users.Anchor).Assembly);
+    opts.Discovery.IncludeAssembly(typeof(Doodoo.Modules.Inventory.Anchor).Assembly);
 
     // Module DbContexts are registered via AddDbContext, whose DbContextOptions is an
     // opaque scoped factory Wolverine cannot inline. Allow the generated handler code to
@@ -80,6 +82,7 @@ builder.Services.AddUsersModule(connectionString);
 builder.Services.AddCurrencyModule(connectionString);
 builder.Services.AddRewardsModule(connectionString);
 builder.Services.AddTodosModule(connectionString);
+builder.Services.AddInventoryModule(connectionString);
 
 builder.Services.AddIdentityCore<AppUser>(opt =>
 {
@@ -123,4 +126,31 @@ app.MapControllers();
 // Aspire default endpoints (/health, /alive in Development).
 app.MapDefaultEndpoints();
 
+await EnsureAdminRoleAsync(app);
+
 app.Run();
+
+// Ensure the "Admin" role exists and assign it to any configured admin emails
+// (config key "Admin:Emails" — array or comma-separated). Idempotent.
+static async Task EnsureAdminRoleAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var sp = scope.ServiceProvider;
+
+    var roleManager = sp.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    if (!await roleManager.RoleExistsAsync("Admin"))
+        await roleManager.CreateAsync(new IdentityRole<Guid>("Admin"));
+
+    var configured = app.Configuration.GetSection("Admin:Emails").Get<string[]>()
+        ?? (app.Configuration["Admin:Emails"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    if (configured is null) return;
+
+    var userManager = sp.GetRequiredService<UserManager<AppUser>>();
+    foreach (var email in configured)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user != null && !await userManager.IsInRoleAsync(user, "Admin"))
+            await userManager.AddToRoleAsync(user, "Admin");
+    }
+}

@@ -9,6 +9,7 @@
   </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/Doodoo.Modules.Currency/Doodoo.Modules.Currency.csproj" />
+    <Project Path="modules/Doodoo.Modules.Inventory/Doodoo.Modules.Inventory.csproj" Id="09e2a6da-7591-4dce-b280-75ef38bb4102" />
     <Project Path="modules/Doodoo.Modules.Rewards/Doodoo.Modules.Rewards.csproj" />
     <Project Path="modules/Doodoo.Modules.Todos/Doodoo.Modules.Todos.csproj" />
     <Project Path="modules/Doodoo.Modules.Users/Doodoo.Modules.Users.csproj" />
