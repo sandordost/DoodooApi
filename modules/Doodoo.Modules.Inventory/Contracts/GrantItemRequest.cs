@@ -9,7 +9,7 @@ namespace Doodoo.Modules.Inventory.Contracts
     public sealed class GrantItemRequest
     {
         public Guid? UserId { get; set; }
-        public string? Email { get; set; }
+        [EmailAddress] public string? Email { get; set; }
         public bool All { get; set; }
         [Required] public string DefinitionKey { get; set; } = string.Empty;
         public int Quantity { get; set; } = 1;

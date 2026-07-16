@@ -73,9 +73,10 @@ namespace Doodoo.Modules.Inventory.Controllers
             }
             else if (!string.IsNullOrWhiteSpace(request.Email))
             {
-                var resolvedUserId = await userDirectory.FindUserIdByEmailAsync(request.Email);
+                var email = request.Email.Trim();
+                var resolvedUserId = await userDirectory.FindUserIdByEmailAsync(email);
                 if (resolvedUserId is not { } emailUserId)
-                    return NotFound($"No user found for email '{request.Email}'.");
+                    return NotFound($"No user found for email '{email}'.");
 
                 code = await inventoryService.GrantItemAsync(emailUserId, request.DefinitionKey, request.Quantity);
             }

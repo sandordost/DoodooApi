@@ -63,7 +63,9 @@ namespace DoodooApi.Services
         // IUserDirectory: lets modules resolve a user id from an email without touching AppUser.
         public async Task<Guid?> FindUserIdByEmailAsync(string email)
         {
-            var user = await userManager.FindByEmailAsync(email);
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var user = await userManager.FindByEmailAsync(email.Trim());
             return user?.Id;
         }
     }
